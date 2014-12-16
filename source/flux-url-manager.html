@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _, Module, Modules, DialogManager, Template*/
+/* exported FluxUrlManager */
+var FluxUrlManager = Module.extend({
+	getUrl: function(social) {
+		this.logger.info(&quot;onShare&quot;, event);
+		var config = this.config,
+			data = _.each(_.extend({
+				fluxUCID: config.fluxUCID(),
+				fluxAccountDomain: config.fluxAccountDomain(),
+				device: config.device(),
+				social: social
+			}, this.getMetadata()), function(value, key, list) {
+				// encode querystring params
+				if (!_.isUndefined(value)) {
+					list[key] = encodeURIComponent(value);
+				}
+			});
+		return this.getTemplate()({
+			data: data
+		});
+	},
+	getTemplate: function() {
+		this.configureTemplates();
+		if (!this.config.fluxUCID()) {
+			if (!this.config.fluxAccountDomain()) {
+				this.logger.error(&quot;Unable to share, config has no flux properties&quot;, this.config.all());
+				// TODO, if unable to share, don&#39;t show the share buttons.
+				this.module(DialogManager).showMessage({
+					message: &quot;Unable to share at the moment.&quot;,
+					closeable: true
+				});
+				return _.noop;
+			} else {
+				return FluxUrlManager.FLUX_V1;
+			}
+		}
+		return FluxUrlManager.FLUX_V2;
+	},
+	getMetadata: function() {
+		var config = this.config,
+			playlist = this.module(Modules.PLAYLIST),
+			rss = playlist.currentItem.rss;
+		if (this.config.useEpisodeMetadata()) {
+			return {
+				uri: config.uri,
+				title: playlist.metadata.title,
+				// TODO I believe there could be a token on this url called {domain}
+				link: playlist.metadata.link
+			};
+		}
+		return {
+			uri: rss.guid,
+			title: rss.title,
+			link: rss.link
+		};
+	},
+	configureTemplates: function() {
+		if (FluxUrlManager.FLUX_V1) {
+			return;
+		}
+		FluxUrlManager.FLUX_V1 = _.template(&quot;http://{{data.fluxAccountDomain}}/Share/ShareViaPlayer.aspx?id={{data.uri}}&amp;fluxAccountDomain={{data.fluxAccountDomain}}&amp;permalink={{data.link}}&amp;device={{data.device}}&amp;title={{data.title}}&amp;shareTo={{data.social}}&quot;, {
+			interpolate: Template.INTERPOLATE
+		});
+		FluxUrlManager.FLUX_V2 = _.template(&quot;http://cus.flux.com/UI/{{data.fluxUCID}}/Content/Share?uri={{data.uri}}&amp;permalink={{data.link}}&amp;device={{data.device}}&amp;title={{data.title}}&amp;shareTo={{data.social}}&quot;, {
+			interpolate: Template.INTERPOLATE
+		});
+	}
+}, {
+
+});
+</pre>
+</body>
+</html>

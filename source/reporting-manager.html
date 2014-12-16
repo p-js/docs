@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*global _, Module, Modules, require, Events, BTGInitializer, PlayheadOffsetManager*/
+/* exported ReportingManager */
+var ReportingManager = Module.extend({
+	initialize: function() {
+		_.bindAll(this, &quot;onBTG&quot;);
+		BTGInitializer.init();
+		require([&quot;btg&quot;, &quot;bento-model-adapter&quot;, &quot;bento-reporting-manager&quot;], this.onBTG);
+	},
+	onBTG: function(BTG, BentoModelAdapter, BentoReportingManager) {
+		var player = this.player,
+			config = this.config.all(),
+			playheadOffsetManager = this.module(PlayheadOffsetManager),
+			playlist = this.module(Modules.PLAYLIST),
+			getMetadataEvent = function(event) {
+				var newEvent = _.clone(event);
+				newEvent.data = BentoModelAdapter.processMetadata(playlist, config);
+				return newEvent;
+			};
+		this.logger.info(&quot;configure reporting events&quot;);
+		var reporting = new BentoReportingManager({
+			playhead: player.playhead,
+			state: player.state
+		});
+		player.on(Events.MEDIA_START, reporting.onMediaStart);
+		player.on(Events.MEDIA_END, reporting.onMediaEnd);
+		player.on(Events.METADATA, function(event) {
+			reporting.onMetadata(getMetadataEvent(event));
+		});
+		player.on(Events.PLAYHEAD_UPDATE, function(event) {
+			reporting.onPlayheadUpdate({
+				playhead: event.data,
+				playlistPlayhead: playheadOffsetManager.getPlayhead()
+			});
+		});
+		player.on(Events.INDEX_CHANGE, reporting.onIndexChange);
+		player.on(Events.STATE_CHANGE, reporting.onStateChange);
+	}
+}, {
+	NAME: &quot;ReportingManager&quot;
+});
+</pre>
+</body>
+</html>

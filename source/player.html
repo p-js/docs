@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">// Define Handlebars
+// doesn&#39;t seem like istanbul will ignore the next
+//= ../util/third-party/include.handlebars.js
+
+// Define Backbone
+/* istanbul ignore next */
+//= ../util/third-party/include.backbone.js
+
+// Define Logger
+/* istanbul ignore next */
+//= ../../components/pjs-logger/dist/logger.js
+
+// Define Playlist
+/* istanbul ignore next */
+//= ../../components/pjs-playlist/dist/pjs-playlist.js
+
+// Define Fullscreen
+/* istanbul ignore next */
+//= ../../components/pjs-fullscreen/dist/pjs-fullscreen.js
+
+// Define Video
+/* istanbul ignore next */
+//= ../../components/swfobject/swfobject/swfobject.js
+/* istanbul ignore next */
+//= ../../components/pjs-video/dist/video.js
+
+// Define Url
+/* istanbul ignore next */
+//= ../../components/pjs-url-util/dist/url-util.js
+
+// Utils
+//= ../util/[freeze.js, throw-error.js, event-validator.js, core.js]
+//= ../util/[config.js, module.js, share-util.js]
+
+// Model
+//= ../model
+
+// CSS
+//= ../../temp/css
+
+// Player
+//= ../player/p-js/[model, manager/video, manager, managers.js, manager/gui, manager/util]
+//= ../player/p-js/[view, vmap, vmap/manager, mrss, mrss/manager]
+//= ../player/[player.js, contentless.js]
+//= ../player/p-js/player-mixin.js
+
+//= ../util/[static-methods.js, template-processor.js]
+//= ../player/p-js/exports.js
+//= ../util/[finish.js, fire-api-callbacks.js]
+
+/* global Logger, PJS */
+// write version
+(new Logger(&quot;PJS&quot;)).log(&quot;v&quot; + PJS.version + &quot; built:&quot; + PJS.build);
+</pre>
+</body>
+</html>

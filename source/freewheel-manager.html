@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global Module, BTGInitializer, require, _, Modules, AdDisplayManager */
+/* exported FreeWheelManager */
+var FreeWheelManager = (function() {
+	var AdMetadata = function(freeWheelData) {
+		this.index = freeWheelData.currentAdIndex;
+		this.total = freeWheelData.adCount;
+		this.duration = freeWheelData.duration;
+		this.isFreeWheel = true;
+		this.isClickable = freeWheelData.isClickable;
+	};
+	AdMetadata.prototype.getAdSlotTimeRemaining = function(playhead) {
+		if (this.duration &gt; 0) {
+			return this.duration - playhead;
+		}
+	};
+<span id='BentoReadyMixin'>	/**
+</span>	 * @ignore
+	 * These method reference BTG.Bento (this.bento)
+	 * Which is loaded asynchronously.
+	 * The methods are mixed in once loaded.
+	 */
+	var BentoReadyMixin = {
+		playAd: function(isPostRoll) {
+			isPostRoll = !!isPostRoll;
+			var message = (isPostRoll ? &quot;post&quot; : &quot;pre&quot;) + &quot;roll&quot;;
+			this.logger.info(&quot;check for &quot; + message);
+			if (isPostRoll || this.shouldTryPreRoll()) {
+				this.logger.log(&quot;hand off control to freewheel for &quot; + message);
+				this.trigger(FreeWheelManager.Events.START, {
+					type: FreeWheelManager.Events.START,
+					target: this
+				});
+				this.freeWheelConfig.hasContentEnd = isPostRoll;
+				this.freeWheelConfig.currentItem = this.playlist.currentIndex;
+				this.isEngaged = true;
+				// defer is essential for this pattern
+				_.defer(this.bento.isItTimeForAnAd, this.freeWheelConfig);
+			}
+			return this.isEngaged;
+		},
+		onAdClick: function() {
+			this.logger.info(&quot;learn more clicked.&quot;);
+			this.bento.onAdClick();
+		}
+	};
+	return Module.extend({
+		isEngaged: false,
+		adCheckedIndex: -1,
+		initialize: function() {
+			if (this.isEnabled()) {
+				_.bindAll(this, &quot;onBTG&quot;, &quot;onAdComplete&quot;, &quot;onAdMetadata&quot;, &quot;onAdClick&quot;, &quot;playAd&quot;);
+				BTGInitializer.init();
+				this.playlist = this.module(Modules.PLAYLIST);
+				require([&quot;btg&quot;, &quot;bento-model-adapter&quot;], this.onBTG);
+			} else {
+				this.logger.warn(&quot;FreeWheel disabled&quot;);
+			}
+		},
+		playAd: function() {
+			this.logger.debug(&quot;queue playAd until bento loads&quot;);
+			this.queuedAd = true;
+			return this.isEnabled();
+		},
+		isEnabled: function() {
+			return this.config.freewheelEnabled();
+		},
+		freeWheelConfig: {
+			// these seem arbitrary.
+			x: 0,
+			y: 0,
+			width: 450,
+			height: 350
+		},
+		shouldTryPreRoll: function() {
+			// we&#39;re playing an ad already.
+			if (this.isEngaged) {
+				this.logger.info(&quot;FreeWheel is already engaged&quot;);
+				return false;
+			}
+			var currentIndex = this.playlist.currentIndex;
+			// we already checked for this index
+			if (this.adCheckedIndex === currentIndex) {
+				this.logger.info(&quot;No ad, index &quot; + this.adCheckedIndex + &quot; already &quot;);
+				return false;
+			}
+			// set the checked index.
+			this.adCheckedIndex = currentIndex;
+			return true;
+		},
+		onAdClick: function() {},
+		onAdComplete: function() {
+			this.isEngaged = false;
+			this.logger.log(&quot;onAdComplete&quot;);
+			this.trigger(FreeWheelManager.Events.METADATA, {
+				type: FreeWheelManager.Events.METADATA,
+				target: this
+			});
+			this.trigger(FreeWheelManager.Events.END, {
+				type: FreeWheelManager.Events.END,
+				target: this
+			});
+		},
+		onAdMetadata: function(event) {
+			this.logger.info(&quot;onAdMetadata&quot;, event);
+			this.trigger(FreeWheelManager.Events.METADATA, {
+				data: new AdMetadata(event),
+				type: FreeWheelManager.Events.METADATA,
+				target: this
+			});
+		},
+		onBTG: function(BTG) {
+			this.bento = BTG.Bento;
+			_.extend(this, BentoReadyMixin);
+			_.bindAll(this, &quot;playAd&quot;, &quot;onAdClick&quot;);
+			// this needs to be here, since the above methods are redefined.
+			this.listenTo(this.module(AdDisplayManager), AdDisplayManager.Events.LEARN_MORE, this.onAdClick);
+			this.logger.info(&quot;configure freewheel events&quot;);
+			BTG.Events.FW_AD_METADATA.add(this.onAdMetadata);
+			BTG.Events.FW_AD_PLAYEND.add(this.onAdComplete);
+			if (this.queuedAd) {
+				// make sure all btg listeners fire, then play ad
+				_.defer(this.playAd);
+			}
+		}
+	}, {
+		NAME: &quot;FreeWheelManager&quot;,
+		Events: {
+			START: &quot;start&quot;,
+			METADATA: &quot;metadata&quot;,
+			END: &quot;end&quot;
+		}
+	});
+})();
+</pre>
+</body>
+</html>

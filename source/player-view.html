@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _, $, Backbone, Events*/
+/* exported PlayerView */
+var PlayerView = Backbone.View.extend({
+	isActive: false,
+	initialize: function(options) {
+		this.options = options;
+		this.$el = this.options.player.$el;
+		_.bindAll(this, &quot;activate&quot;, &quot;deactivate&quot;, &quot;onIdle&quot;, &quot;onMediaStart&quot;);
+		$(document.body).on(&quot;mouseup&quot;, this.deactivate);
+		this.options.player.once(Events.MEDIA_START, this.onMediaStart);
+		this.throttledMouseMove = _.throttle(this.mousemove, 500);
+	},
+	onMediaStart: function() {
+		this.startTimer();
+	},
+	events: {
+		touchstart: &quot;activate&quot;,
+		mousedown: &quot;activate&quot;,
+		touchend: &quot;deactivate&quot;,
+		mouseup: &quot;deactivate&quot;,
+		mousemove: &quot;throttledMouseMove&quot;,
+		mouseleave: &quot;mouseleave&quot;
+	},
+	mouseleave: function() {
+		this.mouseLeft = true;
+		this.deactivate();
+	},
+	mousemove: function() {
+		if (!this.mouseLeft) {
+			this.activate();
+			this.startTimer();
+		}
+		this.mouseLeft = false;
+	},
+	activate: function() {
+		this.stopTimer();
+		if (!this.isActive) {
+			this.isActive = true;
+			this.trigger(PlayerView.Events.START);
+			this.options.player.trigger(Events.UI_STATE_CHANGE, {
+				active: true
+			});
+		}
+	},
+	deactivate: function() {
+		if (this.isActive) {
+			this.isActive = false;
+			this.trigger(PlayerView.Events.END);
+			this.startTimer();
+		}
+	},
+	startTimer: function() {
+		clearTimeout(this.timerId);
+		this.timerId = setTimeout(this.onIdle, PlayerView.IDLE_TIME);
+	},
+	onIdle: function() {
+		this.isActive = false;
+		this.options.player.trigger(Events.UI_STATE_CHANGE, {
+			active: false
+		});
+	},
+	stopTimer: function() {
+		clearTimeout(this.timerId);
+	},
+	destroy: function() {
+		this.stopTimer();
+		$(document.body).off(&quot;mouseup&quot;, this.deactivate);
+		this.stopListening();
+	}
+}, {
+	NAME: &quot;PlayerView&quot;,
+	// After 6 seconds, send the an idle event (ui state active = false).
+	IDLE_TIME: 6000,
+	Events: {
+		START: &quot;start&quot;,
+		END: &quot;end&quot;
+	}
+});
+</pre>
+</body>
+</html>

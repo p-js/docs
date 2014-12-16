@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*global _, Module, Core, Events*/
+/* exported PerformanceManager */
+var PerformanceManager = Module.extend({
+	name: &quot;PerformanceManager&quot;,
+	initialize: function() {
+		_.bindAll(this, &quot;onMetadata&quot;, &quot;onPlaying&quot;);
+		this.player.once(Events.METADATA, this.onMetadata);
+		this.player.once(Events.MEDIA_START, this.onPlaying);
+	},
+	setStartTime: function() {
+		this.config.performance().startTime = (new Date()).getTime();
+	},
+	initComplete: function() {
+		// fired after all the boot up js has executed and the video will play.
+		this.bootUp = (new Date()).getTime();
+	},
+	onMetadata: function() {
+		this.mediaGen = (new Date()).getTime();
+		Core.processPerformance(this.player, {
+			bootUp: this.bootUp,
+			mediaGen: this.mediaGen
+		});
+	},
+	onPlaying: function() {
+		this.playing = (new Date()).getTime();
+		var results = {
+			bootUp: this.bootUp,
+			mediaGen: this.mediaGen,
+			playing: this.playing
+		};
+		this.logger.info(results);
+		Core.processPerformance(this.player, results);
+	},
+	destroy: function() {
+		this.player.off(Events.METADATA, this.onMetadata);
+		this.player.off(Events.MEDIA_START, this.onPlaying);
+	}
+}, {
+	NAME: &quot;PerformanceManager&quot;
+});
+</pre>
+</body>
+</html>

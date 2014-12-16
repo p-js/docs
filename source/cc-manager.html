@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*global $, _, require, Module, TimedTextModel, Modules, Events, UserManager */
+/* exported ClosedCaptionManager */
+var ClosedCaptionManager = Module.extend({
+	initialize: function() {
+		var player = this.options.player;
+		if (this.config.ccEnabled() &amp;&amp; !player.isLive()) {
+			_.bindAll(this, &quot;processState&quot;, &quot;captionate&quot;, &quot;onUserPrefChange&quot;, &quot;updateCCPrefs&quot;, &quot;onUIStateChange&quot;, &quot;errorLoadingCaptions&quot;);
+			this.userPrefs = player.module(UserManager);
+			this.videoElement = player.module(Modules.VIDEO).el;
+			player.once(Events.MEDIA_START, this.processState);
+			player.on(Events.UI_STATE_CHANGE, this.onUIStateChange);
+			this.listenTo(this.userPrefs, &quot;change:ccOn&quot;, this.onUserPrefChange);
+			this.listenTo(this.userPrefs, &quot;change:ccPrefs&quot;, this.updateCCPrefs);
+			this.$el = $(&quot;&lt;div/&gt;&quot;).addClass(&quot;mtvn-captionator&quot;);
+			this.videoElement._containerObject = this.$el[0];
+			player.$el.append(this.$el);
+		}
+	},
+	guiIsVisible: true,
+	updateCCPrefs: function() {
+		if (this.captionator) {
+			this.captionator.updateCCPrefs(this.videoElement, this.userPrefs.get(&quot;ccPrefs&quot;));
+		}
+	},
+	onUserPrefChange: function() {
+		this.isOnChange = true;
+		this.processState();
+	},
+	onUIStateChange: function(event) {
+		this.guiIsVisible = event.data.active;
+		this.setCaptionCSS();
+	},
+	errorLoadingCaptions: function() {
+		if (this.isOnChange) {
+			this.player.showMessage({
+				message: &quot;Sorry, can&#39;t load closed captioning.&quot;,
+				closeable: true
+			});
+		}
+		this.isOnChange = false;
+	},
+	enableCC: function() {
+		var track = TimedTextModel.getCurrentTrack(this.player.config, this.userPrefs.userLanguage);
+		if (track) {
+			this.logger.log(&quot;turn cc on&quot;, track);
+			track.onError = this.errorLoadingCaptions;
+			track.srclang = track.lang; // captionator uses srclang.
+			this.videoElement._trackConfig = track;
+			require(&quot;captionator&quot;, this.captionate);
+		} else {
+			this.errorLoadingCaptions();
+		}
+	},
+	captionate: function(captionator) {
+		this.captionator = captionator;
+		// call captionify every time, if the index changed or the media ended, or if it&#39;s the first time, then it will actually captionify.
+		captionator.captionify(this.videoElement);
+		this.showCaptions();
+		this.setCaptionCSS();
+		this.updateCCPrefs();
+	},
+	processState: function() {
+		var ccOn = this.userPrefs.get(&quot;ccOn&quot;),
+			isPlayingAd = this.player.currentMetadata.isAd;
+		if (!isPlayingAd &amp;&amp; ccOn) {
+			this.enableCC();
+		} else {
+			this.hideCaptions();
+			if (!isPlayingAd) {
+				this.logger.log(&quot;toggle() off.&quot;);
+			} else {
+				this.logger.log(&quot;toggle() playing ad, after will turn:&quot; + (ccOn ? &quot;on&quot; : &quot;off&quot;));
+			}
+		}
+	},
+	setCaptionCSS: function() {
+		this.$el.animate({
+			translateY: this.guiIsVisible ? &quot;-50px&quot; : &quot;0px&quot;
+		}, 500, &quot;ease&quot;);
+	},
+	showCaptions: function() {
+		_.each(this.videoElement._textTracks, function(track) {
+			if (track.language === &quot;en&quot;) {
+				track.setMode(this.captionator.TextTrack.SHOWING);
+			} else {
+				track.setMode(this.captionator.TextTrack.OFF);
+			}
+		}, this);
+	},
+	hideCaptions: function() {
+		_.each(this.videoElement._textTracks, function(track) {
+			track.setMode(this.captionator.TextTrack.OFF);
+		}, this);
+	}
+}, {
+	NAME: &quot;ClosedCaptionManager&quot;
+});
+</pre>
+</body>
+</html>

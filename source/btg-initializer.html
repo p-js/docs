@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global require, provide, _ */
+/* exported BTGInitializer */
+var BTGInitializer = {
+	init: _.once(function() {
+		// provide components that depend on BTG.
+		// This approach could change..
+		// I don&#39;t think it&#39;s needed since VMAP and MRSS both report with Bento,
+		// we can probably load BTG right away
+		require(&quot;btg&quot;, function(BTG) {
+			/* jshint unused:false */
+			/* global BentoModelAdapter */
+			//= ../../components/bento-model-adapter/dist/bento-model-adapter.js
+			provide(&quot;bento-model-adapter&quot;, BentoModelAdapter);
+			/* global Reporting */
+			//= ../../components/pjs-reporting/dist/pjs-reporting.js
+			provide(&quot;bento-reporting-manager&quot;, Reporting.BentoManager);
+		});
+	})
+};
+</pre>
+</body>
+</html>

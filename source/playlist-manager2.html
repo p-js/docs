@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _, Modules, Logger, VMAPAdManager, Playlist, PlaylistItem */
+/* exported VMAPPlaylistManager */
+var VMAPPlaylistManager = Playlist.extend({
+	initialize: function() {
+		var player = this.player,
+			playlist = this.config.playlist();
+		this.metadata = {
+			items: []
+		};
+		_.bindAll(this, &quot;load&quot;);
+		Playlist.prototype.initialize.apply(this, arguments);
+		if (playlist &amp;&amp; _.isArray(playlist.items)) {
+			// map the playlist.items to new PlaylistItems.
+			this.metadata.items = _.map(playlist.items, function(item, index) {
+				var playlistItem = new PlaylistItem({
+					isLive: player.isLive(), // isLive and isDVR are player settings
+					isDVR: player.isDVR(), // but also playlist item settings. hmm.
+					index: index
+				});
+				// copy any other properties to the item.
+				_.extend(playlistItem, item);
+				return playlistItem;
+			});
+			this.listenTo(this, Playlist.Events.INDEX_CHANGE, this.load);
+		} else {
+			// create a new item based on config properties.
+			this.metadata.items[0] = new PlaylistItem({
+				uri: this.config.uri(),
+				isLive: player.isLive(),
+				isDVR: player.isDVR()
+			});
+		}
+		this.currentItem = this.getCurrentItem();
+		this.onPlaylistReady = _.once(this.onPlaylistReady);
+		this.logger.info(&quot;playlist initialized&quot;, this.metadata);
+	},
+	load: function() {
+		this.logger.log(&quot;load index&quot;, this.currentIndex);
+		this.loadItem(this.currentIndex);
+	},
+	loadItem: function(index) {
+		var item = this.getItemAt(index),
+			player = this.options.player,
+			config = this.config,
+			vmap = this.config.mediaGen() ? this.config.mediaGen().vmap : null;
+		if (item.ready) {
+			this.triggerItemReady();
+			return;
+		}
+		// the config loader prepared the vmap.
+		// or for uplynk, the page prepared the playlist item.
+		// in the future, we may want to load another vmap...	
+		item.ready = true;
+		if (vmap) {
+			item.src = vmap.uri;
+			this.module(VMAPAdManager).onVMAP(vmap);
+		} else if (config.test().src) {
+			this.logger.warn(&quot;testSrc is just for testing&quot;, config.test().src);
+			item.src = config.test().src;
+		} else if (!item.src) {
+			player.showMessage({
+				message: &quot;No video src specified.&quot;
+			});
+		}
+		this.onPlaylistReady();
+		this.triggerItemReady();
+	},
+	triggerItemReady: function() {
+		this.logger.info(&quot;trigger item ready&quot;, this.currentItem);
+		this.trigger(Playlist.Events.ITEM_READY, {
+			target: this,
+			type: Playlist.Events.ITEM_READY,
+			data: this.currentItem
+		});
+	},
+	onPlaylistReady: function() {
+		this.trigger(Playlist.Events.READY, {
+			target: this,
+			type: Playlist.Events.READY,
+			data: this.metadata
+		});
+	},
+	logger: new Logger(&quot;PJS.VMAPPlaylistManager&quot;),
+	destroy: function() {
+		// TODO, Playlist is not like other modules, it&#39;s missing destroy.
+		this.stopListening();
+	}
+}, {
+	NAME: Modules.PLAYLIST
+});
+</pre>
+</body>
+</html>

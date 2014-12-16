@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global PJS, Core, _, _mtvnPlayerReady */
+<span id='PJS-method-getPlayers'>/**
+</span> * @member PJS
+ * Returns an array containing each {@link PJS.Player} created.
+ * @returns {Array} An array containing each {@link PJS.Player} created.
+ *      var players = PJS.getPlayers();
+ *      for(var i = 0, len = players.length; i &lt; len; i++){
+ *          var player = players[i];
+ *          if(player.config.uri === &quot;mgid:cms:video:thedailyshow.com:12345&quot;){
+ *              // do something
+ *          }
+ *      }
+ */
+PJS.getPlayers = function() {
+	return _.map(Core.instances, function(instance) {
+		return instance.player;
+	});
+};
+<span id='PJS-method-getPlayer'>/**
+</span> * @member PJS
+ * @param String uri (optional)
+ * Returns a player that matches a specific uri.
+ * If no arguments are passed, return the first player.
+ * @returns PJS.Player
+ */
+PJS.getPlayer = function(uri) {
+	var instances = Core.instances,
+		i = instances.length;
+	if (!uri) {
+		if (i &gt; 0) {
+			return instances[0].player;
+		}
+	}
+	for (i; i--;) {
+		if (instances[i].player.config.uri === uri) {
+			return instances[i].player;
+		}
+	}
+	return null;
+};
+<span id='PJS-method-gc'>/**
+</span> * @member PJS
+ * Garbage collection, looks for all {@link PJS.Player} that are no longer in the document,
+ * and removes them from the hash map.
+ */
+PJS.gc = function() {
+	var elementInDocument = function(element) {
+		while (element.parentNode) {
+			element = element.parentNode;
+			if (element === document) {
+				return true;
+			}
+		}
+		return false;
+	};
+	var instances = Core.instances,
+		i = instances.length;
+	for (i; i--;) {
+		var player = instances[i].player,
+			el = player.$el ? player.$el[0] : null;
+		if (!el || !elementInDocument(el)) {
+			instances.splice(i, 1);
+			player.destroy();
+		}
+	}
+};
+<span id='PJS-method-createPlayers'>/**
+</span> * @member PJS
+ * @deprecated
+ * Use {@link PJS.Player} instead and pass it a selector.
+ */
+PJS.createPlayers = function(selectorQuery, config, events) {
+	return PJS.Player(selectorQuery, config, events);
+};
+<span id='PJS-method-onPlayer'>/**
+</span> * @member PJS
+ * @param {Function} callback A callback fired when every player is created.
+ * @deprecated Use `_mtvnPlayerReady`.
+ */
+PJS.onPlayer = function(callback) {
+	_mtvnPlayerReady.push(callback);
+};
+<span id='PJS-method-removeOnPlayer'>/**
+</span> * @member PJS
+ * Remove a callback registered width {@link PJS#onPlayer}
+ * @param {Function} callback A callback fired when every player is created.
+ * @deprecated Use `_mtvnPlayerReady`.
+ */
+PJS.removeOnPlayer = function(callback) {
+	var index = _mtvnPlayerReady.indexOf(callback);
+	if (index !== -1) {
+		_mtvnPlayerReady.splice(index, 1);
+	}
+};
+</pre>
+</body>
+</html>

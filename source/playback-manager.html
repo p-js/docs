@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _, VideoManager, Events, FreeWheelManager, AgeGateManager, Playlist, require*/
+/* exported PlaybackManager */
+var PlaybackManager = VideoManager.extend({
+	initialize: function() {
+		VideoManager.prototype.initialize.apply(this, arguments);
+		_.bindAll(this, &quot;_play&quot;, &quot;onMediaEnd&quot;, &quot;playNext&quot;, &quot;play&quot;, &quot;playPostRoll&quot;, &quot;onAdsWillStart&quot;);
+		this.player.on(Events.MEDIA_END, this.onMediaEnd);
+		this.freeWheelManager = this.player.module(FreeWheelManager);
+		this.listenTo(this.freeWheelManager, FreeWheelManager.Events.START, this.onAdsWillStart);
+		this.listenTo(this.freeWheelManager, FreeWheelManager.Events.END, this.onAdsComplete);
+	},
+	play: function() {
+		this.logger.info(&quot;attempt play&quot;);
+		if (this.userManager.canWatchVideo()) {
+			if (!this.freeWheelManager.playAd(false)) {
+				this.playItem();
+			} else {
+				if (this.freeWheelManager.isEngaged) {
+					this.video.play();
+				}
+				this.logger.log(&quot;waiting for FreeWheel...&quot;);
+				this.listenToOnce(this.freeWheelManager, FreeWheelManager.Events.END, this.play);
+			}
+		} else {
+			this.player.module(AgeGateManager).verify();
+		}
+	},
+	playItem: function() {
+		if (this.playlist.currentItem.ready) {
+			this.logger.log(&quot;item ready, play!&quot;);
+			if (this.config.useConviva()) {
+				// maybe we need to this, maybe not..
+				this.logger.log(&quot;waiting for Conviva...&quot;);
+				require(&quot;conviva&quot;, this._play);
+			} else {
+				this._play();
+			}
+		} else {
+			this.playlist.loadCurrentItem();
+			this.logger.log(&quot;waiting for mediaGen...&quot;);
+			this.listenToOnce(this.playlist, Playlist.Events.ITEM_READY, this.play);
+		}
+	},
+	seek: function(time) {
+		var timeOffset = this.playlist.timeOffset;
+		this.logger.info(&quot;check the time&quot;, time, timeOffset);
+		if (time &lt; timeOffset || time &gt; timeOffset + this.playlist.currentItem.duration) {
+			// it&#39;s gonna be a full episode seek
+			this.logger.info(&quot;seeking across episodes&quot;);
+			this.queuedStartTime = time;
+			this.player.trigger(Events.MEDIA_END);
+		} else {
+			this._seek(time);
+		}
+	},
+	_play: function() {
+		VideoManager.prototype.play.apply(this);
+		if (this.queuedStartTime) {
+			var seekTo = Math.abs(this.queuedStartTime - this.playlist.timeOffset);
+			this.logger.info(&quot;seek to queuedStartTime&quot;, seekTo);
+			this.queuedStartTime = 0;
+			this._seek(seekTo);
+		}
+	},
+	_seek: function() {
+		VideoManager.prototype.seek.apply(this, _.toArray(arguments));
+	},
+	onMediaEnd: function() {
+		this.logger.info(&quot;onMediaEnd()&quot;);
+		// let all media end events propagate before starting the next video.
+		_.defer(this.playPostRoll);
+	},
+	onAdsWillStart: function() {
+		this.logger.info(&quot;set video events for ads&quot;);
+		this.video.activeEvents = [&quot;timeupdate&quot;, &quot;click&quot;, &quot;play&quot;, &quot;pause&quot;];
+		this.video.undelegateEvents();
+		this.video.delegateEvents();
+	},
+	onAdsComplete: function() {
+		this.logger.info(&quot;resetEvents for content&quot;);
+		this.video.resetEvents();
+	},
+	playPostRoll: function() {
+		this.logger.info(&quot;playPostRoll()&quot;);
+		if (!this.freeWheelManager.playAd(true)) {
+			// don&#39;t wait for freewheel.
+			this.logger.log(&quot;play next and don&#39;t wait for freewheel&quot;);
+			this.playNext();
+		} else {
+			this.logger.log(&quot;wait for freewheel&quot;);
+			this.listenToOnce(this.freeWheelManager, FreeWheelManager.Events.END, this.playNext);
+		}
+	},
+	playNext: function() {
+		this.logger.info(&quot;play whatever&#39;s next&quot;);
+		if (this.queuedStartTime) {
+			var totalDuration = 0,
+				matchedIndex = -1;
+			_.some(this.playlist.metadata.items, function(item, index) {
+				if (this.queuedStartTime &lt;= totalDuration + item.duration) {
+					matchedIndex = index;
+					return true;
+				}
+				totalDuration += item.duration;
+			}, this);
+			this.playlist.setIndex(matchedIndex);
+			this.logger.info(&quot;Begin cycle for &quot; + matchedIndex);
+			this.play();
+		} else if (this.playlist.next()) {
+			this.play();
+		} else {
+			this.logger.info(&quot;no more items, PLAYLIST_COMPLETE&quot;);
+			this.player.trigger(Events.PLAYLIST_COMPLETE);
+		}
+	}
+}, {
+	NAME: &quot;PlaybackManager&quot;
+});
+</pre>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* exported EventValidator */
+/* global _, Events, PlayState, getErrorMessage */
+var EventValidator = {
+	fixEventName: function(eventName) {
+		if (eventName &amp;&amp; eventName.indexOf(&quot;on&quot;) === 0) {
+			if (eventName === &quot;onUIStateChange&quot;) {
+				return &quot;uiStateChange&quot;;
+			}
+			return eventName.charAt(2).toLowerCase() + eventName.substr(3);
+		}
+		return eventName;
+	},
+<span id='global-method-checkEventName'>	/**
+</span>	 * @method checkEventName
+	 * @ignore
+	 * @param {String} eventName
+	 * Check if the event exists in our list of events.
+	 */
+	checkEventName: function(eventName) {
+		var eventArgs;
+		if (!_.isString(eventName)) {
+			throw getErrorMessage(&quot;trying to register &#39;undefined&#39; as an event name.&quot;);
+		}
+		if (eventName.indexOf(&quot;:&quot;) !== -1) {
+			var parts = eventName.split(&quot;:&quot;);
+			eventName = parts[0];
+			eventArgs = parts[1];
+		}
+		var check = function(events) {
+			for (var event in events) {
+				if (events.hasOwnProperty(event) &amp;&amp; events[event] === eventName) {
+					return true; // has event
+				}
+			}
+			return false;
+		};
+		if (eventArgs) {
+			if (eventName === Events.STATE_CHANGE) {
+				if (!_.contains(PlayState, eventArgs)) {
+					throw getErrorMessage(&quot;event \&quot;&quot; + eventName + &quot;\&quot; doesn&#39;t have state \&quot;&quot; + eventArgs + &quot;\&quot;&quot;);
+				}
+			}
+		}
+		if (check(Events)) {
+			return;
+		}
+		throw getErrorMessage(&quot;event:&quot; + eventName + &quot; doesn&#39;t exist.&quot;);
+	},
+<span id='global-method-checkEvents'>	/**
+</span>	 * @method checkEvents
+	 * @ignore
+	 * @param {Object} events
+	 * Loop through the events, and check the event names
+	 */
+	checkEvents: function(events) {
+		for (var event in events) {
+			if (events.hasOwnProperty(event) &amp;&amp; event.indexOf(&quot;on&quot;) === 0) {
+				events[EventValidator.fixEventName(event)] = events[event];
+				delete events[event];
+			}
+		}
+		for (event in events) {
+			if (events.hasOwnProperty(event)) {
+				EventValidator.checkEventName(event);
+			}
+		}
+	}
+};
+</pre>
+</body>
+</html>

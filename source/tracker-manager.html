@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global $, _, Module, Events, PlayState, VMAPAdManager*/
+/* exported VMAPTrackerManager */
+var VMAPTrackerManager = Module.extend({
+	name: &quot;VMAPTrackerManager&quot;,
+	initialize: function() {
+		_.bindAll(this, &quot;onVMAP&quot;, &quot;fire&quot;);
+		this.adManager = this.module(VMAPAdManager);
+		this.listenTo(this.adManager, VMAPAdManager.Events.METADATA, this.onVMAP);
+	},
+	breakIdsMatch: function(id) {
+		if (this.adManager.isPlayingAd()) {
+			return this.adManager.currentAd.breakId === id;
+		}
+		return false;
+	},
+	fire: function(tracker, event) {
+		if (this.breakIdsMatch(tracker.breakId)) {
+			this.logger.log(&quot;tracker&quot;, tracker.event || tracker.timeToFire, tracker.url, this.player.playhead);
+			$.ajax({
+				type: &#39;POST&#39;,
+				url: tracker.url
+			});
+		} else if (tracker.timeToFire) {
+			this.logger.warn(&quot;ad tracker fired but no ad was found&quot;, tracker, event.data, this.adManager.isPlayingAd(), this.adManager.currentAd);
+		}
+	},
+	onVMAP: function(event) {
+		var isMuted = this.player.volume() === 0,
+			hasPaused = true;
+		this.trackers = event.data.trackers;
+		_.each(this.trackers, function(tracker) {
+			// tracker event.
+			var fireTracker = _.partial(this.fire, tracker);
+			// timer trackers use playhead
+			if (tracker.timeToFire) {
+				this.player.once(Events.PLAYHEAD_UPDATE + &quot;:&quot; + tracker.timeToFire, fireTracker);
+			} else {
+				switch (tracker.event) {
+					case &quot;pause&quot;:
+						hasPaused = true;
+						this.player.on(Events.STATE_CHANGE + &quot;:&quot; + PlayState.PAUSED, fireTracker);
+						break;
+					case &quot;resume&quot;:
+						if (hasPaused) {
+							hasPaused = false;
+							this.player.on(Events.STATE_CHANGE + &quot;:&quot; + PlayState.PLAYING, fireTracker);
+						}
+						break;
+					case &quot;mute&quot;:
+						this.player.on(Events.VOLUME_CHANGE, function(event) {
+							if (event.data === 0) {
+								isMuted = true;
+								fireTracker();
+							}
+						});
+						break;
+					case &quot;unmute&quot;:
+						this.player.on(Events.VOLUME_CHANGE, function(event) {
+							if (event.data &gt; 0 &amp;&amp; isMuted) {
+								isMuted = false;
+								fireTracker();
+							}
+						});
+						break;
+					default:
+						break;
+				}
+			}
+		}, this);
+	},
+	destroy: function() {}
+});
+</pre>
+</body>
+</html>

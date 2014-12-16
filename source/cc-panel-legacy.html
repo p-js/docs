@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _, _mtvnPlayerReady, require*/
+_mtvnPlayerReady.push(function(player) {
+	// when this is true, we&#39;ll abort.
+	var isShowingPanel;
+<span id='global-property-'>	/**
+</span>	 * @ignore
+	 * Since this isn&#39;t p-js, we don&#39;t do this from the page.
+	 * Instead the api is loaded into the HTML5 player&#39;s iframe.
+	 * Once the p-js service is ready, we can avoid these hacks.
+	 */
+	if (player.config.isSyndicatedLegacyHTML5) {
+		player.module(&quot;cc-panel&quot;, {
+			options: {},
+			show: function(isCCOn) {
+				if (isShowingPanel) {
+					return false;
+				}
+				isShowingPanel = true;
+				require([&quot;mtvn-util&quot;, &quot;pjs-dialog&quot;, &quot;pjs-cc-panel&quot;], function(Util, Dialog, CCPanel) {
+					// Create the panel with the defaults.
+					var ccPanel = new CCPanel({
+						isCCOn: isCCOn
+					});
+					ccPanel.on(CCPanel.Events.ON, function() {
+						player.enableCC();
+					});
+					ccPanel.on(CCPanel.Events.OFF, function() {
+						player.disableCC();
+					});
+					ccPanel.on(CCPanel.Events.ADVANCED, function() {
+						player.showCCPrefs();
+					});
+					// create the dialog container
+					var dialog = new Dialog({
+						title: &quot;Closed Captioning&quot;,
+						closeable: true,
+						message: ccPanel.$el[0]
+					});
+					dialog.$el.css({
+						position: &quot;absolute&quot;,
+						top: 0,
+						left: 0,
+						width: player.$el.width(),
+						height: player.$el.height()
+					});
+					dialog.on(Dialog.Events.REMOVE, function() {
+						isShowingPanel = false;
+					});
+					// append the dialog to the player container.
+					_.delay(function() {
+						player.$el.append(dialog.$el);
+					}, 100);
+				});
+			}
+		});
+	}
+});
+</pre>
+</body>
+</html>

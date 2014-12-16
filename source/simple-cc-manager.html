@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*global $, _, Module, Modules, Events, UserManager, Video */
+/* exported SimpleCCManager */
+var SimpleCCManager = Module.extend({
+	initialize: function() {
+		var player = this.options.player;
+		if (this.config.ccEnabled()) {
+			this.onTimedText = _.throttle(this.onTimedText, 100);
+			_.bindAll(this, &quot;processState&quot;, &quot;clearTimedText&quot;, &quot;onUserPrefChange&quot;, &quot;updateCCPrefs&quot;, &quot;onUIStateChange&quot;);
+			this.userPrefs = this.player.module(UserManager);
+			player.on(Events.MEDIA_END, this.clearTimedText);
+			player.on(Events.MEDIA_START, this.processState);
+			player.on(Events.UI_STATE_CHANGE, this.onUIStateChange);
+			this.listenTo(this.userPrefs, &quot;change:ccOn&quot;, this.onUserPrefChange);
+			this.listenTo(this.userPrefs, &quot;change:ccPrefs&quot;, this.updateCCPrefs);
+			this.video = this.options.player.module(Modules.VIDEO);
+			this.$el = $(&quot;&lt;div/&gt;&quot;).addClass(&quot;mtvn-simple-cc&quot;);
+			this.updateCCPrefs();
+			player.$el.append(this.$el);
+		}
+	},
+	guiIsVisible: true,
+	updateCCPrefs: function() {
+		var ccPrefs = this.userPrefs.get(&quot;ccPrefs&quot;) || {
+				containerCSS: {}
+			},
+			containerStyles = {
+				fontSize: 14,
+				fontFamily: &quot;serif, sans-serif, monospace&quot;,
+				color: &quot;white&quot;
+			};
+		_.extend(containerStyles, _.pick(ccPrefs.containerCSS, &quot;fontSize&quot;, &quot;fontFamily&quot;));
+		// convert fontSize to line height.
+		containerStyles.lineHeight = (parseFloat(containerStyles.fontSize, 10) * 1.62803399) + &quot;pt&quot;;
+
+		// container
+		this.$el.css(containerStyles);
+
+		// text container
+		var cueContainerCSS = _.extend({
+			backgroundColor: &quot;black&quot;,
+			padding: &quot;2px 9px 4px 10px&quot;,
+		}, _.omit(ccPrefs.containerCSS, &quot;fontSize&quot;, &quot;fontFamily&quot;));
+
+		// create the cue container element.
+		this.$cueContainer = $(&quot;&lt;span/&gt;&quot;).css(cueContainerCSS);
+
+		// update existing text
+		if (this.lastEvent) {
+			this.onTimedText(this.lastEvent);
+		}
+	},
+	clearTimedText: function() {
+		if (this.$el) {
+			this.$el.empty();
+		}
+	},
+	onTimedText: function(event) {
+		clearTimeout(this.delay);
+		this.$el.empty();
+		// style CC elements
+		_.each(event.data, function(text) {
+			var $t = $(&quot;&lt;span/&gt;&quot;).text(text);
+			this.$el.append(this.$cueContainer.clone().append($t));
+			this.$el.append($(&quot;&lt;br&gt;&quot;));
+		}, this);
+		this.lastEvent = event;
+		this.delay = _.delay(this.clearTimedText, 15000);
+	},
+	onUserPrefChange: function() {
+		this.isOnChange = true;
+		this.processState();
+	},
+	onUIStateChange: function(event) {
+		this.guiIsVisible = event.data.active;
+		this.setCaptionCSS();
+	},
+	processState: function() {
+		var ccOn = this.userPrefs.get(&quot;ccOn&quot;),
+			isPlayingAd = this.player.currentMetadata.isAd;
+		if (!isPlayingAd &amp;&amp; ccOn) {
+			this.listenTo(this.video, Video.Events.TIMED_TEXT, this.onTimedText);
+		} else {
+			this.$el.empty();
+			this.stopListening(this.video);
+			if (!isPlayingAd) {
+				this.logger.log(&quot;toggle() off.&quot;);
+			} else {
+				this.logger.log(&quot;toggle() playing ad, after will turn:&quot; + (ccOn ? &quot;on&quot; : &quot;off&quot;));
+			}
+		}
+	},
+	setCaptionCSS: function() {
+		this.$el.animate({
+			translateY: this.guiIsVisible ? &quot;-50px&quot; : &quot;0px&quot;
+		}, 500, &quot;ease&quot;);
+	}
+}, {
+	NAME: &quot;SimpleCCManager&quot;
+});
+</pre>
+</body>
+</html>

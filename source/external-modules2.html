@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* exported ExternalModules */
+var ExternalModules = {
+	&quot;mtvn-player/age-gate&quot;: {
+		shim: true,
+		url: &quot;//media.mtvnservices.com/player/js/age-gate/0.1.0/age-gate.min.js&quot;,
+		exports: &quot;AgeGate&quot;,
+		css: &quot;//media.mtvnservices.com/player/js/age-gate/0.1.0/age-gate.min.css&quot;
+	},
+	&quot;pjs-gui&quot;: {
+		url: &quot;//media.mtvnservices.com/player/js/gui/0.11.0/mtvn.js&quot;,
+		css: &quot;//media.mtvnservices.com/player/js/gui/0.11.0/gui.css&quot;
+	},
+	&quot;btg&quot;: {
+		shim: true,
+		global: true,
+		exports: &quot;BTG&quot;,
+		url: &quot;//media.mtvnservices-d.mtvi.com/hosted/temp/btg.js&quot;
+	},
+	&quot;conviva&quot;: {
+		shim: true,
+		global: true,
+		exports: &quot;Conviva&quot;,
+		url: &quot;//livepassdl.conviva.com/ver/2.85.0.21474/LivePass.js&quot;
+	},
+	&quot;mtvn-player/cc-prefs&quot;: {
+		shim: true,
+		url: &quot;//media.mtvnservices.com/player/js/cc-prefs/0.3.10/cc-prefs.min.js&quot;,
+		exports: &quot;CCPrefs&quot;,
+		css: &quot;//media.mtvnservices.com/player/js/cc-prefs/0.3.10/style.css&quot;
+	},
+	&quot;captionator&quot;: {
+		shim: true,
+		exports: &quot;captionator&quot;,
+		url: &quot;//media.mtvnservices.com/player/js/cc/0.2.0/mtvn-captionator.min.js&quot;
+	}
+};
+</pre>
+</body>
+</html>

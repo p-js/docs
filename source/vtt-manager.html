@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*global Module, _, Events, $*/
+/* exported VTTManager */
+var VTTManager = Module.extend({
+	initialize: function() {
+		if (this.config.ccEnabled()) {
+			_.bindAll(this, &quot;onMetadata&quot;);
+			this.player.on(Events.METADATA, this.onMetadata);
+		}
+	},
+	onMetadata: function(event) {
+		var mediaGen = event.data.mediaGen,
+			$video = $(this.player.element);
+		// clear all text tracks
+		$video.find(&quot;track&quot;).remove();
+		if (mediaGen &amp;&amp; mediaGen.transcript) {
+			_.each(mediaGen.transcript, function(transcript) {
+				if (transcript.vtt) {
+					$video.append($(&quot;&lt;track/&gt;&quot;).attr({
+						src: transcript.vtt,
+						label: transcript.label,
+						srclang: transcript.srclang,
+						kind: transcript.kind
+					}));
+				}
+			});
+		}
+	}
+}, {
+	NAME: &quot;VTTManager&quot;
+});
+</pre>
+</body>
+</html>

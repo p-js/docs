@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*global $, _, Config, MTVNPlayer*/
+(function() {
+	var eventPrefix = &quot;MTVNPlayer:&quot;,
+		placeholderSelector = &quot;div.pjs-placeholder&quot;,
+		// support for MTVN.config.player
+		legacyConfig = (function(MTVN) {
+			if (MTVN &amp;&amp; MTVN.config &amp;&amp; MTVN.config.player) {
+				return MTVN.config.player;
+			}
+		})(window.MTVN),
+		// also copy the properties from MTVN.player.config or MTVNPlayer.defaultConfig.
+		defaultConfig = Config.copyProperties({}, legacyConfig || MTVNPlayer.defaultConfig),
+		// allow $(&quot;MTVNPlayer&quot;).trigger(&quot;MTVNPlayer:playIndex&quot;,[0,20]);.
+		mapMethods = function(el, player) {
+			var invoke = function(event) {
+					var methodName = event.type.replace(eventPrefix, &quot;&quot;),
+						args = _.rest(_.toArray(arguments)),
+						method = player[methodName];
+					if (_.isFunction(method)) {
+						method.apply(player, args);
+					}
+				},
+				playerPrototype = MTVNPlayer.Player.prototype;
+			for (var prop in playerPrototype) {
+				if (playerPrototype.hasOwnProperty(prop)) {
+					el.bind(eventPrefix + prop, invoke);
+				}
+			}
+		},
+		// creates a player and hooks up
+		createPlayer = function($el, config, events) {
+			var player = new MTVNPlayer.Player($el[0], config, events);
+			mapMethods($el, player);
+			return player;
+		};
+	// main plugin function
+	$.fn.player = function(options) {
+		options = options || {};
+		if ($.isFunction(options)) {
+			options = {
+				callback: options
+			};
+		}
+		// callback is fired after an MTVNPlayer is created.
+		var callback = $.isFunction(options.callback) ? options.callback : function() {},
+			// first we look for .MTVNPlayer, then we refine to .MTVNPlayers with contenturis.
+			self = this.not(function() {
+				return $(this).data(&quot;contenturi&quot;) ? false : true;
+			}),
+			canUsePlaceholder = MTVNPlayer.Player.prototype.canUsePlaceholder;
+		if (self.length &gt; 0) {
+			// prepare placeholders.
+			self.each(function() {
+				var $el = $(this),
+					// there&#39;s gonna be one of these for each element, 
+					// copyProperties creates a deep clone of the singular options.config.
+					config = Config.copyProperties({}, options.config);
+				// ugh. first copy the default, but don&#39;t override.
+				// I have to do this since internally I don&#39;t support the MTVN.config stuff.
+				config = Config.copyProperties(config, defaultConfig);
+				// next apply that config to the element properties.    
+				config = Config.buildConfig($el, config);
+				if (canUsePlaceholder &amp;&amp; $el.children().length &gt; 0) { // if element has children, assume placeholders.
+					// take the config options and apply them to the $el
+					// if they aren&#39;t numbers or a valid perctange, they won&#39;t override.
+					$el.width(config.width);
+					$el.height(config.height);
+					// wrap the placeholder and add the button.
+					$el.html(function(idx, old) {
+						return &#39;&lt;div class=&quot;pjs-placeholder&quot;&gt;&#39; + old + &#39;&lt;div class=\&quot;pjs-placeholder-button\&quot;&gt;&lt;/div&gt;&lt;/div&gt;&#39;;
+					});
+					// when clicked, create a player.
+					$el.delegate(placeholderSelector, &quot;click&quot;, function(e) {
+						e.preventDefault();
+						// store markup for later use
+						$el.find(placeholderSelector).hide();
+						var player = createPlayer($el, config, options.events);
+						$el.bind(&quot;MTVNPlayer:showPlaceholder&quot;, function() {
+							player.destroy({
+								leaveElement: true
+							});
+							$el.children().not(placeholderSelector).remove();
+							$el.find(placeholderSelector).show();
+						});
+						callback();
+					});
+				} else { // else create the player
+					$el.empty();
+					createPlayer($el, config, options.events);
+					callback();
+				}
+			});
+		} else {
+			// nothing happened.
+			callback();
+		}
+	};
+	if (window.$) {
+		window.$.fn.player = $.fn.player;
+	}
+})();
+</pre>
+</body>
+</html>

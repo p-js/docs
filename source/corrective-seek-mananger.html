@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*global _, Module, Events, VMAPAdManager*/
+/* exported CorrectiveSeekManager*/
+<span id='CorrectiveSeekManager'>/**
+</span> * @ignore
+ * Corrects the seeking of the user to enforce the ad model.
+ */
+var CorrectiveSeekManager = Module.extend({
+	initialize: function() {
+		if (this.config.correctiveSeeking()) {
+			var player = this.player = this.options.player;
+			_.bindAll(this, &quot;onPlayhead&quot;, &quot;initializeModel&quot;);
+			this.adManager = player.module(VMAPAdManager);
+			this.listenTo(this.adManager, VMAPAdManager.Events.MODEL_READY, this.initializeModel);
+			player.on(Events.PLAYHEAD_UPDATE, this.onPlayhead);
+		}
+	},
+	initializeModel: function() {
+		// an array of times that must be watched before the playhead can move beyond them.
+		// [0,1,2,3,4,5,6,7,8,9,10,30,31,32,33,34...]
+		this.ranges = [];
+		// ranges we haven&#39;t enforced yet.
+		this.queuedRanges = this.adManager.model.ranges.concat();
+	},
+	onPlayhead: function() {
+		var playhead = Math.round(this.player.element.currentTime);
+		if (playhead !== this.lastPlayhead) {
+			this.setAdTimes(playhead);
+			this.popAdTimes(playhead);
+			this.checkForCorrectiveSeek(playhead);
+		}
+		this.lastPlayhead = playhead;
+	},
+	setAdTimes: function(playhead) {
+		// clone the range so we can manipulate in the loop.
+		_.each(this.queuedRanges.concat(), function(range) {
+			// our playhead is within the range, enforce corrective seeking.
+			if (_.contains(range, playhead)) {
+				// add the range
+				this.ranges = this.ranges.concat(range);
+				// remove the range from the queue.
+				this.queuedRanges = _(this.queuedRanges).without(range);
+				this.logger.info(&quot;enforce range:&quot; + _.first(range) + &quot;-&quot; + _.last(range));
+			}
+		}, this);
+	},
+<span id='CorrectiveSeekManager-method-popAdTimes'>	/**
+</span>	 * every playhead tick during an ad will remove a time
+	 */
+	popAdTimes: function(playhead) {
+		this.ranges = _.without(this.ranges, playhead);
+	},
+	checkForCorrectiveSeek: function(playhead) {
+		var adStartTime = _.first(this.ranges);
+		if (playhead &gt; adStartTime) {
+			this.correctiveSeek(adStartTime);
+		}
+	},
+<span id='CorrectiveSeekManager-property-correctiveSeek'>	/**
+</span>	 * only invoke once per second.
+	 */
+	correctiveSeek: _.throttle(function(seekTo) {
+		this.logger.warn(&quot;corrective seek:&quot;, seekTo);
+		this.player.seek(seekTo);
+	}, 1000),
+	destroy: function() {
+		this.stopListening();
+		this.player.off(Events.PLAYHEAD_UPDATE, this.onPlayhead);
+	}
+}, {
+	NAME: &quot;CorrectiveSeekManager&quot;
+});
+</pre>
+</body>
+</html>

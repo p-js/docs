@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _, Events, Module, require, VMAPAdManager, FreeWheelManager*/
+/* exported AdDisplayManager */
+<span id='AdDisplayManager'>/**
+</span> * @ignore
+ * Manage the Ad Display.
+ */
+var AdDisplayManager = Module.extend({
+	initialize: function() {
+		if (!this.config.chromeless()) {
+			_.bindAll(this, &quot;onAd&quot;, &quot;onPlayhead&quot;, &quot;showAdDisplay&quot;, &quot;onLearnMore&quot;, &quot;onAdComplete&quot;);
+			this.listenTo(this.module(VMAPAdManager), VMAPAdManager.Events.AD, this.onAd);
+			this.listenTo(this.module(FreeWheelManager), FreeWheelManager.Events.METADATA, this.onAd);
+			this.listenTo(this.module(FreeWheelManager), FreeWheelManager.Events.END, this.onAdComplete);
+			this.player.on(Events.PLAYHEAD_UPDATE, this.onPlayhead);
+		}
+	},
+<span id='AdDisplayManager-method-onAd'>	/**
+</span>	 * When an ad plays, show/hide the gui.
+	 */
+	onAd: function(event) {
+		this.currentAd = event.data;
+		if (_.isObject(this.currentAd)) {
+			if (this.config.isVMAP()) {
+				this.model = this.module(VMAPAdManager).model;
+			} else {
+				this.model = this.currentAd;
+			}
+			this.logger.log(&quot;ad, show ad display panel&quot;, this.currentAd);
+			require(&quot;pjs-gui&quot;, this.showAdDisplay);
+		} else {
+			this.onAdComplete();
+		}
+	},
+	onAdComplete: function() {
+		if (this.gui) {
+			this.logger.log(&quot;no ad, delete gui&quot;);
+			this.gui.$el.remove();
+			delete this.gui;
+		}
+	},
+<span id='AdDisplayManager-method-showAdDisplay'>	/**
+</span>	 * Create the GUI if it&#39;s not there yet.
+	 */
+	showAdDisplay: function(GUI) {
+		if (this.currentAd) {
+			var AdDisplay = GUI.AdDisplay,
+				options = {
+					buttonLink: this.currentAd.clickThrough
+				};
+			if (this.currentAd.isFreeWheel &amp;&amp; this.currentAd.isClickable) {
+				options.buttonLink = AdDisplay.LEARN_MORE_EVENT_ONLY;
+			}
+			if (!this.gui) {
+				// create the gui div
+				var $el = this.player.$el;
+				this.gui = new AdDisplay(options);
+				this.logger.info(&quot;create ad display&quot;, options);
+				$el.append(this.gui.$el);
+				this.listenTo(this.gui, AdDisplay.Events.LEARN_MORE, this.onLearnMore);
+			} else {
+				this.logger.info(&quot;render ad display&quot;, options);
+				this.gui.render(options);
+			}
+			this.setCountdownTime(this.player.playhead);
+		}
+	},
+	onLearnMore: function() {
+		this.trigger(AdDisplayManager.Events.LEARN_MORE, {
+			type: AdDisplayManager.Events.LEARN_MORE,
+			target: this
+		});
+	},
+<span id='AdDisplayManager-method-onPlayhead'>	/**
+</span>	 * Update the countdown message as the playhead moves.
+	 */
+	onPlayhead: function(event) {
+		this.setCountdownTime(event.data);
+	},
+	setCountdownTime: function(playheadTime) {
+		if (this.currentAd &amp;&amp; this.gui) {
+			var time = Math.ceil(this.model.getAdSlotTimeRemaining(playheadTime));
+			if (!isNaN(time)) {
+				this.gui.renderMessage(time);
+			}
+		}
+	},
+	destroy: function() {
+		if (this.gui) {
+			this.gui.$el.remove();
+		}
+		delete this.gui;
+		this.stopListening();
+	}
+}, {
+	NAME: &quot;AdDisplayManager&quot;,
+	Events: {
+		LEARN_MORE: &quot;LEARN_MORE&quot;
+	}
+});
+</pre>
+</body>
+</html>

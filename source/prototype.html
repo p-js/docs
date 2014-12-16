@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global Player, Core, _, EventValidator, ShareUtil, getErrorMessage*/
+// public api
+Player.prototype = {
+<span id='PJS-Player-property-currentMetadata'>	/**
+</span>	 * @member PJS.Player
+	 * The current metadata is based on the current index.
+	 */
+	currentMetadata: {},
+<span id='global-property-canUsePlaceholder'>	/**
+</span>	 * @ignore
+	 * Used internally by the placeholder code.
+	 */
+	canUsePlaceholder: true,
+<span id='PJS-Player-method-play'>	/**
+</span>	 * @member PJS.Player
+	 * Begins playing or unpauses.
+	 */
+	play: function() {
+		return this.message(&quot;play&quot;);
+	},
+<span id='PJS-Player-method-pause'>	/**
+</span>	 * @member PJS.Player
+	 * Pauses the media.
+	 */
+	pause: function() {
+		return this.message(&quot;pause&quot;);
+	},
+<span id='PJS-Player-method-mute'>	/**
+</span>	 * @member PJS.Player
+	 * Mutes the volume
+	 */
+	mute: function() {
+		return this.message(&quot;mute&quot;);
+	},
+<span id='PJS-Player-method-unmute'>	/**
+</span>	 * @member PJS.Player
+	 * Returns the volume to the level before it was muted.
+	 */
+	unmute: function() {
+		return this.message(&quot;unmute&quot;);
+	},
+<span id='PJS-Player-method-playIndex'>	/**
+</span>	 * @member PJS.Player
+	 * Play an item from the playlist specified by the index and optionally at a certain time in the clip.
+	 * @param {Number} index
+	 * @param {Number} startTime value between 0 and the duration of the current clip.
+	 */
+	playIndex: function(index, startTime) {
+		return this.message(&quot;playIndex&quot;, index, startTime);
+	},
+<span id='PJS-Player-method-playURI'>	/**
+</span>	 * @member PJS.Player
+	 * Play a new URI
+	 * @param {String} uri
+	 */
+	playURI: function(uri) {
+		return this.message(&quot;playUri&quot;, uri);
+	},
+<span id='PJS-Player-method-playSource'>	/**
+</span>	 * @ignore
+	 * @member PJS.Player
+	 * Experimental feature.
+	 * Tell the underlining playback component to change source.
+	 * @param {String} uri
+	 */
+	playSource: function(url) {
+		return this.message(&quot;playSource&quot;, url);
+	},
+<span id='PJS-Player-method-volume'>	/**
+</span>	 * @member PJS.Player
+	 * Change the volume
+	 * @param {Number} value between 0 and 1.
+	 * If nothing is passed, retrieve the volume.
+	 */
+	volume: function(volume) {
+		return this.message(&quot;volume&quot;, volume);
+	},
+<span id='PJS-Player-method-seek'>	/**
+</span>	 * @member PJS.Player
+	 * Seeks to the time specified in seconds relative to the first clip.
+	 * @param {Number} value between 0 and the duration of the playlist.
+	 * The value is relative to the first clip. It&#39;s recommended that when
+	 * seeking to another clip besides the first, use {@link PJS.Player#playIndex}.
+	 */
+	seek: function(time) {
+		return this.message(&quot;seek&quot;, time);
+	},
+<span id='PJS-Player-method-isSeeking'>	/**
+</span>	 * @member PJS.Player
+	 * @return {Boolean} Whether or not the player is seeking. Implementations may vary.
+	 */
+	isSeeking: function() {
+		return this.message(&quot;isSeeking&quot;);
+	},
+<span id='PJS-Player-method-isPaused'>	/**
+</span>	 * @member PJS.Player
+	 * @return {Boolean} Whether or not the video is paused.
+	 */
+	isPaused: function() {
+		return this.message(&quot;isPaused&quot;);
+	},
+<span id='PJS-Player-method-getEmbedCode'>	/**
+</span>	 * @member PJS.Player
+	 * Returns the embed code used to share this instance of the player
+	 * @return {String} the embed code as a string.
+	 */
+	getEmbedCode: function() {
+		return ShareUtil.getEmbedCode(this.config, this.currentMetadata, this.$el);
+	},
+<span id='PJS-Player-method-goFullScreen'>	/**
+</span>	 * @member PJS.Player
+	 * Puts the player in full screen mode, does not work for the flash player do the flash restrictions.
+	 */
+	goFullScreen: function(el) {
+		return this.message(&quot;goFullScreen&quot;, el);
+	},
+<span id='PJS-Player-method-exitFullScreen'>	/**
+</span>	 * @member PJS.Player
+	 * Exits full screen and returns the player to its initial embed size.
+	 */
+	exitFullScreen: function() {
+		return this.message(&quot;exitFullScreen&quot;);
+	},
+<span id='PJS-Player-method-goLive'>	/**
+</span>	 * @member PJS.Player
+	 * While live streaming, if the user isn&#39;t live, put them there.
+	 */
+	goLive: function() {
+		if (this.isLive()) {
+			return this.message(&quot;goLive&quot;);
+		} else {
+			this.logger.warn(&quot;player is not live.&quot;);
+		}
+	},
+<span id='PJS-Player-method-isLive'>	/**
+</span>	 * @member PJS.Player
+	 * Shortcut for accessing currentMetadata isLive property.
+	 */
+	isLive: function() {
+		var m = this.currentMetadata;
+		if (m) {
+			return !!m[_.isUndefined(m.isLive) ? &quot;live&quot; : &quot;isLive&quot;];
+		}
+		return false;
+	},
+<span id='PJS-Player-method-isDVR'>	/**
+</span>	 * @member PJS.Player
+	 * Shortcut for accessing currentMetadata isDVR property.
+	 */
+	isDVR: function() {
+		var m = this.currentMetadata;
+		if (m) {
+			return !!m[_.isUndefined(m.isDVR) ? &quot;dvr&quot; : &quot;isDVR&quot;];
+		}
+		return false;
+	},
+<span id='PJS-Player-method-showCCPanel'>	/**
+</span>	 * @member PJS.Player
+	 * @deprecated
+	 * Show the Closed Captioning Panel
+	 */
+	showCCPanel: function() {
+		return this.message(&quot;showCCPanel&quot;);
+	},
+<span id='PJS-Player-method-showCCPrefs'>	/**
+</span>	 * @member PJS.Player
+	 * @deprecated
+	 * Show the Closed Captioning Preferance Panel
+	 */
+	showCCPrefs: function() {
+		return this.message(&quot;showCCPrefs&quot;);
+	},
+	isCCOn: function() {
+		return this.message(&quot;isCCOn&quot;);
+	},
+<span id='PJS-Player-method-enableCC'>	/**
+</span>	 * @member PJS.Player
+	 *
+	 */
+	enableCC: function() {
+		return this.message(&quot;enableCC&quot;);
+	},
+<span id='PJS-Player-method-disableCC'>	/**
+</span>	 * @member PJS.Player
+	 *
+	 */
+	disableCC: function() {
+		return this.message(&quot;disableCC&quot;);
+	},
+<span id='PJS-Player-method-bind'>	/**
+</span>	 * @member PJS.Player
+	 * Adds an event listener for an event.
+	 * @deprecated use {@link PJS.Player#on} instead.
+	 * @param {String} eventName an {@link PJS.Events}.
+	 * @param {Function} callback The function to invoke when the event is fired.
+	 */
+	bind: function(eventName, callback) {
+		if (!_.isFunction(callback)) {
+			throw getErrorMessage(&quot;adding &quot; + eventName + &quot; with callback that is not a function&quot;);
+		}
+		eventName = EventValidator.fixEventName(eventName);
+		EventValidator.checkEventName(eventName);
+		var currentEvent = this.events[eventName];
+		if (!currentEvent) {
+			currentEvent = callback;
+		} else if (currentEvent instanceof Array) {
+			currentEvent.push(callback);
+		} else {
+			currentEvent = [callback, currentEvent];
+		}
+		this.events[eventName] = currentEvent;
+	},
+<span id='PJS-Player-method-unbind'>	/**
+</span>	 * @member PJS.Player
+	 * Removes an event listener
+	 * @deprecated use {@link PJS.Player#off} instead.
+	 * @param {String} eventName an PJS.Event.
+	 * @param {Function} callback The function to that was bound to the event.
+	 */
+	unbind: function(eventName, callback) {
+		eventName = EventValidator.fixEventName(eventName);
+		EventValidator.checkEventName(eventName);
+		var i, currentEvent = this.events[eventName];
+		if (!currentEvent) {
+			return;
+		} else if (currentEvent instanceof Array) {
+			for (i = currentEvent.length; i--;) {
+				if (currentEvent[i] === callback) {
+					currentEvent.splice(i, 1);
+					break;
+				}
+			}
+		} else {
+			this.events[eventName] = null;
+		}
+	},
+<span id='PJS-Player-method-once'>	/**
+</span>	 * @member PJS.Player
+	 * Adds an event listener for an event that will only fire once and then be removed.
+	 * @deprecated use {@link PJS.Player#one} instead.
+	 * @param {String} eventName an {@link PJS.Events}.
+	 * @param {Function} callback The function to invoke when the event is fired.
+	 */
+	once: function(eventName, callback) {
+		var ref = this,
+			newCB = function(event) {
+				ref.unbind(eventName, newCB);
+				callback(event);
+			};
+		this.on(eventName, newCB);
+	},
+<span id='PJS-Player-method-trigger'>	/**
+</span>	 * @member PJS.Player
+	 * Triggers an event off the player instance.
+	 * @param {String} eventName an {@link PJS.Events}.
+	 * @param {Object} data Data will be available as event.data on the event object.
+	 */
+	trigger: function(type, data) {
+		if (!type) {
+			throw getErrorMessage(&quot;event triggered without type.&quot;);
+		}
+		Core.processEvent(this.events[type], {
+			target: this,
+			data: data,
+			type: type
+		});
+	},
+<span id='PJS-Player-method-destroy'>	/**
+</span>	 * @member PJS.Player
+	 * Required for older versions of IE.
+	 */
+	destroy: function() {
+		// overriden by modules
+	}
+};
+<span id='PJS-Player-method-on'>/**
+</span> * @member PJS.Player
+ * Adds an event listener for an event.
+ * @param {String} eventName an {@link PJS.Events}.
+ * @param {Function} callback The function to invoke when the event is fired.
+ */
+Player.prototype.on = Player.prototype.bind;
+<span id='PJS-Player-method-off'>/**
+</span> * @member PJS.Player
+ * Removes an event listener
+ * @param {String} eventName an PJS.Event.
+ * @param {Function} callback The function to that was bound to the event.
+ */
+Player.prototype.off = Player.prototype.unbind;
+<span id='PJS-Player-method-one'>/**
+</span> * @member PJS.Player
+ * Adds an event listener for an event that will only fire once and then be removed.
+ * @param {String} eventName an {@link PJS.Events}.
+ * @param {Function} callback The function to invoke when the event is fired.
+ */
+Player.prototype.one = Player.prototype.once;
+<span id='PJS-Player-property-setVolume'>/**
+</span> * @member PJS.Player
+ * Use volume instead.
+ * @deprecated
+ */
+Player.prototype.setVolume = Player.prototype.volume;
+// Extend the prototype with the Player Implementation.
+</pre>
+</body>
+</html>

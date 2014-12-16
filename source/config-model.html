@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _ */
+/* exported ConfigModel */
+<span id='ConfigModel'>/**
+</span> * @ignore
+ * My attempt at doing something like this w/o es6
+ * http://www.nczonline.net/blog/2014/04/22/creating-defensive-objects-with-es6-proxies/
+ * And also just a way to keep track of what config properties are being used
+ */
+var ConfigModel = (function() {
+	var Defaults = {
+		autoPlay: false,
+		chromeless: false,
+		ccEnabled: false,
+		correctiveSeeking: false,
+		device: undefined,
+		disableControlsForAds: false,
+		feed: undefined,
+		freewheelEnabled: true,
+		fluxUCID: undefined,
+		fluxAccountDomain: undefined,
+		isFlash: false,
+		isVMAP: false,
+		mediaGen: undefined,
+		performance: {},
+		ready: false,
+		ref: undefined,
+		requiredAge: undefined, // TODO Page defined
+		share: {},
+		showVolume: false, // TODO Page defined
+		showVolumeSlider: false, // TODO Page defined
+		test: {
+			configURL: undefined,
+			mediaGenURL: undefined
+		},
+		topPanel: false,
+		width: undefined,
+		height: undefined,
+		useAkamaiAnalytics: false,
+		useConviva: false,
+		useEpisodeMetadata: false,
+		useMediaGenFromFeed: false,
+		useNativeControls: false,
+		useSegmentedScrubber: false,
+		uri: undefined
+	};
+	var Proxy = function(obj) {
+		this.wrapped = _.defaults(obj, Defaults);
+	};
+	_.each(Defaults, function(val, prop) {
+		Proxy.prototype[prop] = function() {
+			return this.wrapped[prop];
+		};
+	});
+	Proxy.prototype.all = function() {
+		return this.wrapped;
+	};
+	return Proxy;
+})();
+</pre>
+</body>
+</html>

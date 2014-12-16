@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _ */
+/* exported ModuleManager */
+<span id='ModuleManager'>/**
+</span> * @ignore
+ * A module manager manages modules for a player instance.
+ * As opposed to PJS.require/provide, which is static.
+ *
+ * The options argument is passed along to all modules when they&#39;re created.
+ * This give them the ability to define a controller, or a way to communicate.
+ */
+var ModuleManager = function(options) {
+	// a hash map of modules.
+	var modules = {},
+<span id='global-property-'>		/**
+</span>		 * @ignore
+		 * framework-y stuff.
+		 * You can call module(UserManager) and register an instance of UserManager.
+		 * If you want to retrieve the instance just call module(UserManager) again.
+		 * Or you can call module(&quot;some-user-manager&quot;, UserManager), to register a new UserManager,
+		 * and then retrieve it via the id module(&quot;some-user-manager&quot;). Or if
+		 * UserManager.NAME is available, you can also retrieve it with module(UserModule.NAME).
+		 *
+		 * The code may be confusing, but in the end, it&#39;s just a way to do the shorthand,
+		 * this.module(Something) instead of having two methods, one for register and one for retrieve.
+		 */
+		manager = function(name, Module) {
+			// you can pass just an object
+			if (_.isObject(name)) {
+				Module = name;
+				// the object could have a NAME property
+				if (!Module.NAME) {
+					// otherwise generate one and set the NAME property for next time.
+					Module.NAME = _.uniqueId(&quot;PrivateModule&quot;);
+				}
+				name = Module.NAME;
+			}
+			// the module exists already, return it.
+			if (modules[name]) {
+				return modules[name];
+			}
+			// the object wasn&#39;t passed in either argument, and wasn&#39;t found.
+			if (!Module) {
+				throw &quot;&quot; + name + &quot; module isn&#39;t registered yet.&quot;;
+			}
+			// args for the instance, also passed to initialize
+			var args = _.extend(_.clone(options), {
+				moduleId: name
+			});
+			// instantiate a function, or set an object.
+			var module = modules[name] = (_.isFunction(Module) ? new Module(args) : (function() {
+				// give the already defined Module a moduleId.
+				if (Module.options) {
+					// maybe rethink this.
+					Module.options.moduleId = name;
+				}
+				return Module;
+			}()));
+			// we must invoke initialize after construction of the instance, 
+			// to avoid unwanted recurision
+			if (_.isFunction(module.initialize)) {
+				module.initialize(args);
+			}
+			// return the newly created module.
+			return module;
+		};
+<span id='global-method-remove'>	/**
+</span>	 * @ignore
+	 * module.remove(UserManager);
+	 */
+	manager.remove = function(nameOrClass) {
+		if (_.isObject(nameOrClass)) {
+			if (nameOrClass.NAME) {
+				// use the class static property NAME
+				delete modules[nameOrClass.NAME];
+			} else {
+				// get the module id.
+				modules = _.omit(modules, nameOrClass.options.moduleId);
+			}
+		} else if (_.isString(nameOrClass)) {
+			// it&#39;s a string
+			delete modules[nameOrClass];
+		}
+	};
+<span id='global-method-all'>	/**
+</span>	 * @ignore
+	 * module.remove(UserManager);
+	 */
+	manager.all = function() {
+		return modules;
+	};
+	return manager;
+};
+</pre>
+</body>
+</html>

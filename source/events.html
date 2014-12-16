@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* exported Events */
+<span id='PJS-Events'>/**
+</span> * @class PJS.Events
+ * Events dispatched by {@link PJS.Player}.
+ *
+ * All events have a target property (event.target) which is the player that dispatched the event.
+ * Some events have a data property (event.data) which contains data specific to the event.
+ *
+ * # How to listen to events
+ *
+ * Attach to player instance via {@link PJS.Player#on}:
+ *
+ *     player.on(&quot;metadata&quot;, function(event) {
+ *        var metadata = event.data;
+ *     });
+ *
+ *     player.one(&quot;playheadUpdate&quot;, function(event) {
+ *        var playhead = event.data;
+ *     });
+ *
+ * Passed in as an Object to the constructor {@link PJS.Player}:
+ *
+ *     var player = new PJS.Player($(&quot;.video-player&quot;)[0], config, {
+ *       metadata: function(event) {
+ *         var metadata = event.data;
+ *       }
+ *     });
+ *
+ * Also see:
+ *
+ *  * {@link PJS.Player#on on}
+ *  * {@link PJS.Player#off off}
+ *  * {@link PJS.Player#one one}
+ */
+var Events = {
+<span id='PJS-Events-event-metadata'>	/**
+</span>	 * @event metadata
+	 * Fired when the metadata changes. event.data is the metadata. Also see {@link PJS.Player#currentMetadata}.
+	 *      player.on(&quot;metadata&quot;,function(event) {
+	 *          // inspect the metadata object to learn more (documentation on metadata is in progress)
+	 *          console.log(&quot;metadata&quot;,event.data);
+	 *
+	 *          // at anytime after the PJS.Events#READY,
+	 *          // you can access the metadata on the player directly at PJS.Player#currentMetadata
+	 *          console.log(event.data === player.currentMetadata); // true
+	 *      });
+	 */
+	METADATA: &quot;metadata&quot;,
+<span id='PJS-Events-event-stateChange'>	/**
+</span>	 * @event stateChange
+	 * Fired when the play state changes. event.data is the state.
+	 *
+	 * You can also listen for a specific state only (v2.5.0).
+	 * ```
+	 * player.on(&quot;stateChange:paused&quot;,function(event){
+	 *  // callback fires when state equals paused.
+	 * });
+	 * ```
+	 */
+	STATE_CHANGE: &quot;stateChange&quot;,
+<span id='PJS-Events-event-mediaStart'>	/**
+</span>	 * @event mediaStart
+	 * Fired once per playlist item (content + ads/bumpers).
+	 */
+	MEDIA_START: &quot;mediaStart&quot;,
+<span id='PJS-Events-event-mediaEnd'>	/**
+</span>	 * @event mediaEnd
+	 * Fired when a playlist item ends, this includes its prerolls and postrolls
+	 */
+	MEDIA_END: &quot;mediaEnd&quot;,
+<span id='PJS-Events-event-playheadUpdate'>	/**
+</span>	 * @event playheadUpdate
+	 * Fired as the playhead moves. event.data is the playhead time.
+	 *
+	 * Support for cue points (v2.5.0).
+	 * The below snippet fires once when the playhead crosses the 15 second mark.
+	 * The playhead time itself may be 15 plus a fraction.
+	 * ```
+	 * player.one(&quot;playheadUpdate:15&quot;,function(event){
+	 *  // callback
+	 * });
+	 * ```
+	 */
+	PLAYHEAD_UPDATE: &quot;playheadUpdate&quot;,
+<span id='PJS-Events-event-playlistComplete'>	/**
+</span>	 * @event playlistComplete
+	 * Fired at the end of a playlist
+	 */
+	PLAYLIST_COMPLETE: &quot;playlistComplete&quot;,
+<span id='PJS-Events-event-onOverlayRectChange'>	/**
+</span>	 * @deprecated 1.5.0 Use {@link PJS.Events#uiStateChange} instead
+	 * @event onOverlayRectChange
+	 * Fired when the GUI appears, event.data contains an {Object} {x:0,y:0,width:640,height:320}
+	 */
+	OVERLAY_RECT_CHANGE: &quot;overlayRectChange&quot;,
+<span id='PJS-Events-event-ready'>	/**
+</span>	 * @event ready
+	 * Fired when the player has loaded and the metadata is available.
+	 * You can bind/unbind to events before this fires.
+	 * You can also invoke most methods before the event, the only exception is
+	 * {@link PJS.Player#getEmbedCode}, since it returns a value which
+	 * won&#39;t be ready until the metadata is ready. Other methods will be queued and
+	 * then executed when the player is ready to invoke them.
+	 */
+	READY: &quot;ready&quot;,
+<span id='PJS-Events-event-uiStateChange'>	/**
+</span>	 * @event uiStateChange
+	 * Fired when the UI changes its state, ususally due to user interaction, or lack of.
+	 *
+	 * event.data will contain information about the state.
+	 * - data.active &lt;code&gt;Boolean&lt;/code&gt;: If true, user has activated the UI by clicking or touching.
+	 * If false, the user has remained idle with out interaction for a predetermined amount of time.
+	 * - data.overlayRect &lt;code&gt;Object&lt;/code&gt;: the area that is not obscured by the GUI, a rectangle such as &lt;code&gt;{x:0,y:0,width:640,height:320}&lt;/code&gt;
+	 */
+	UI_STATE_CHANGE: &quot;uiStateChange&quot;,
+<span id='PJS-Events-event-indexChange'>	/**
+</span>	 * @event indexChange
+	 * Fired when the index of the current playlist item changes, ignoring ads.
+	 *
+	 * event.data contains the index
+	 */
+	INDEX_CHANGE: &quot;indexChange&quot;,
+<span id='PJS-Events-event-fullScreenChange'>	/**
+</span>	 * @event fullScreenChange
+	 * HTML5 only. Fired when the player.isFullScreen property has been changed.
+	 * The player may or may not visually be in full screen, it depends on its context.
+	 * Check {@link PJS.Player#isFullScreen} to see if the player is in full screen or not.
+	 */
+	FULL_SCREEN_CHANGE: &quot;fullScreenChange&quot;,
+<span id='PJS-Events-event-volumeChange'>	/**
+</span>	 * @event volumeChange
+	 * HTML5 only. Fired when the player.element.volume property has been changed.
+	 */
+	VOLUME_CHANGE: &quot;volumeChange&quot;,
+<span id='PJS-Events-event-airplay'>	/**
+</span>	 * @event airplay
+	 * @private
+	 * Fired when the airplay button is clicked
+	 */
+	AIRPLAY: &quot;airplay&quot;,
+<span id='PJS-Events-event-performance'>	/**
+</span>	 * @event performance
+	 * @private
+	 * Fired when performance data has been collected.
+	 */
+	PERFORMANCE: &quot;performance&quot;,
+<span id='PJS-Events-event-durationChange'>	/**
+</span>	 * @event durationChange
+	 * Fired when the duration is updated. An alternative to the metadata event.
+	 */
+	DURATION_CHANGE: &quot;durationChange&quot;,
+<span id='PJS-Events-event-buffered'>	/**
+</span>	 * @event buffered
+	 * Fired when the buffer is updated.
+	 */
+	BUFFERED: &quot;buffered&quot;
+};
+</pre>
+</body>
+</html>

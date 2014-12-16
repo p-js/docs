@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _, Module, Modules, Events, PlayState, UserManager, Core, CSS*/
+/* exported DialogManager */
+var DialogManager = (function() {
+	/* global Dialog */
+	/* istanbul ignore next */
+	//= ../../components/pjs-dialog/dist/dialog.js
+	Core.appendStyle(CSS[&quot;components/pjs-dialog/dist/style.css&quot;]);
+	return Module.extend({
+		name: &quot;DialogManager&quot;,
+		initialize: function() {
+			_.bindAll(this, &quot;onVideoError&quot;, &quot;showMessage&quot;, &quot;onRemove&quot;, &quot;onXHRError&quot;);
+			this.player.on(Events.STATE_CHANGE + &quot;:&quot; + PlayState.ERROR, this.onVideoError);
+		},
+		onVideoError: function() {
+			var message = &quot;Sorry, there was an error, please try again.&quot;,
+				video = this.module(Modules.VIDEO),
+				src = video.getSrc();
+
+			if (!src || src === location.href) {
+				this.logger.warn(&quot;ignoring video error, video src erroneously set (by freewheel) to &quot; + src);
+				return;
+			}
+			if (this.module(UserManager).get(&quot;verboseErrorMessaging&quot;)) {
+				message = video.getErrorMessage();
+			}
+			this.logger.error(message);
+			this.showMessage({
+				message: message
+			});
+		},
+		onXHRError: function(xhr, description) {
+			// probably not the best spot for this.
+			var response = xhr.response,
+				message = description;
+			if (xhr.status === 0) {
+				message = &quot;Service unavailable.&quot;;
+			}
+			if (response) {
+				response = JSON.parse(response);
+				if (response.message) {
+					message = response.message;
+				}
+			}
+			this.showMessage(message);
+		},
+<span id='global-method-showMessage'>		/**
+</span>		 * @ignore
+		 * options {Object}
+		 *  - title {String}
+		 *  - message {String}
+		 *  - closeable {Boolean}
+		 */
+		showMessage: function(options) {
+			if (_.isString(options)) {
+				options = {
+					message: options
+				};
+			}
+			if (this.dialog) {
+				this.dialog.remove();
+			}
+			var dialog = this.dialog = new Dialog(options);
+			dialog.$el.css({
+				position: &quot;absolute&quot;,
+				top: 0,
+				left: 0
+			});
+			this.listenTo(dialog, Dialog.Events.REMOVE, this.onRemove);
+			dialog.$el.appendTo(this.player.$el);
+		},
+		onRemove: function() {
+			delete this.dialog;
+		},
+		destroy: function() {
+			this.stopListening();
+			if (this.dialog) {
+				this.dialog.remove();
+				delete this.dialog;
+			}
+		}
+	}, {
+		NAME: &quot;DialogManager&quot;
+	});
+})();
+</pre>
+</body>
+</html>

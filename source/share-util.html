@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global $ */
+/* exported ShareUtil*/
+var ShareUtil = {
+	Dimensions16x9: {
+		width: 512,
+		height: 288
+	},
+	Dimensions4x3: {
+		width: 360,
+		height: 293
+	},
+	metadataCSS: {
+		textAlign: &quot;left&quot;,
+		backgroundColor: &quot;white&quot;,
+		padding: &quot;4px&quot;,
+		marginTop: &quot;4px&quot;,
+		marginBottom: &quot;0px&quot;,
+		fontFamily: &quot;Arial, Helvetica, sans-serif&quot;,
+		fontSize: &quot;12px&quot;
+	},
+	template: &quot;&lt;div style=\&quot;background-color:#000000;width:{divWidth}px;\&quot;&gt;&lt;div style=\&quot;padding:4px;\&quot;&gt;&quot; +
+		&quot;&lt;iframe src=\&quot;http://media.mtvnservices.com/embed/{uri}\&quot; width=\&quot;{width}\&quot; height=\&quot;{height}\&quot; frameborder=\&quot;0\&quot;&gt;&lt;/iframe&gt;&quot; +
+		&quot;{displayMetadata}&lt;/div&gt;&lt;/div&gt;&quot;,
+	displayDataPrefix: &quot;&lt;p style=\&quot;text-align:left;background-color:#FFFFFF;padding:4px;margin-top:4px;margin-bottom:0px;font-family:Arial, Helvetica, sans-serif;font-size:12px;\&quot;&gt;&quot;,
+	getEmbedCodeDimensions: function(config, $el) {
+		// we don&#39;t need to know the exaxt dimensions, just enough to get the ratio
+		var width = config.width === &quot;100%&quot; ? $el.width() : config.width,
+			height = config.height === &quot;100%&quot; ? $el.height() : config.height,
+			aspect = width / height,
+			Diff4x3 = Math.abs(aspect - 4 / 3),
+			Diff16x9 = Math.abs(aspect - 16 / 9);
+		return Diff16x9 &lt; Diff4x3 ? ShareUtil.Dimensions16x9 : ShareUtil.Dimensions4x3;
+	},
+	getDisplayMetadata: function(metadata) {
+		if (!metadata) {
+			return &quot;&quot;;
+		}
+		var $result = $(&quot;&lt;p/&gt;&quot;),
+			copy = &quot;&quot;,
+			group = metadata.rss.group,
+			// pjs/service returns category
+			category = group.categories || group.category,
+			source = category.source,
+			sourceLink = category.sourceLink,
+			seoHTMLText = category.seoHTMLText;
+		if (source) {
+			if (sourceLink) {
+				copy += &quot;&lt;b&gt;&lt;a href=\&quot;&quot; + sourceLink + &quot;\&quot;&gt;&quot; + source + &quot;&lt;/a&gt;&lt;/b&gt;&quot;;
+			} else {
+				copy += &quot;&lt;b&gt;&quot; + source + &quot;&lt;/b&gt; &quot;;
+			}
+		}
+		if (seoHTMLText) {
+			if (copy) {
+				copy += &quot;&lt;br&gt;&quot;;
+			}
+			copy += &quot;Get More: &quot; + seoHTMLText;
+		}
+		if (copy) {
+			$result.css(ShareUtil.metadataCSS);
+			$result.html(copy);
+		}
+		return $(&quot;&lt;div/&gt;&quot;).append($result).html();
+	},
+	getEmbedCode: function(config, metadata, $el) {
+		if (!config.uri) {
+			return;
+		}
+		var embedDimensions = ShareUtil.getEmbedCodeDimensions(config, $el),
+			embedCode = ShareUtil.template.replace(/\{uri\}/, config.uri)
+			.replace(/\{width\}/, embedDimensions.width)
+			.replace(/\{divWidth\}/, embedDimensions.width + 8)
+			.replace(/\{height\}/, embedDimensions.height)
+			.replace(/\{displayMetadata\}/, ShareUtil.getDisplayMetadata(metadata));
+		return embedCode;
+	}
+};
+</pre>
+</body>
+</html>

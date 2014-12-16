@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _, Module, Events, require, FluxUrlManager*/
+/* exported TopPanelManager */
+var TopPanelManager = Module.extend({
+	initialize: function(options) {
+		_.bindAll(this, &quot;onMediaStart&quot;, &quot;onMetadata&quot;, &quot;createTopPanel&quot;, &quot;onUIStateChange&quot;, &quot;onShare&quot;);
+		var player = options.player,
+			config = this.config;
+		if (!config.chromeless() &amp;&amp; !config.useNativeControls() &amp;&amp; config.topPanel()) {
+			player.once(Events.MEDIA_START, this.onMediaStart);
+		}
+	},
+	onMediaStart: function() {
+		require(&quot;pjs-gui&quot;, this.createTopPanel);
+	},
+	onMetadata: function() {
+		var metadata = this.player.currentMetadata;
+		if (metadata.isAd) {
+			this.topPanel.$el.hide();
+		} else {
+			var title = metadata.rss.title;
+			this.topPanel.setMetadata(_.isString(title) ? title : &quot;&quot;);
+			this.topPanel.$el.show();
+		}
+	},
+	createTopPanel: function(GUI) {
+		// fires once, after first media start.
+		if (!GUI.TopPanel) {
+			// support for old GUI versions, temporary.
+			return;
+		}
+		var TopPanel = GUI.TopPanel,
+			player = this.player,
+			options = {
+				metadata: player.currentMetadata,
+				share: _.map(this.config.share(), function(share) {
+					return share.id;
+				})
+			},
+			topPanel = this.topPanel = new TopPanel(options);
+		topPanel.$el.css({
+			position: &quot;absolute&quot;,
+			top: 0
+		});
+		this.listenTo(topPanel, TopPanel.Events.SHARE, this.onShare);
+		player.$el.append(topPanel.$el);
+		this.onMetadata();
+		// listen for events.
+		player.on(Events.METADATA, this.onMetadata);
+		player.on(Events.UI_STATE_CHANGE, this.onUIStateChange);
+	},
+	onShare: function(event) {
+		var url = this.module(FluxUrlManager).getUrl(event);
+		this.logger.info(&quot;open:&quot; + url);
+		if (url) {
+			// TODO, always open a new window?
+			window.open(url);
+		}
+	},
+	onUIStateChange: function(event) {
+		if (event.data.active) {
+			this.showControls();
+		} else {
+			this.hideControls();
+		}
+	},
+	hideControls: function() {
+		this.topPanel.$el.animate({
+			translateY: &quot;-50px&quot;
+		}, 500, &quot;ease&quot;);
+	},
+	showControls: function() {
+		this.topPanel.$el.animate({
+			translateY: &quot;0px&quot;
+		}, 500, &quot;ease&quot;);
+	}
+}, {
+	NAME: &quot;TopPanelManager&quot;
+});
+</pre>
+</body>
+</html>

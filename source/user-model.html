@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _, JSON, Backbone*/
+/* exported UserManager */
+var UserManager = (function() {
+	var LOCAL_STORAGE = {
+		CC_ON: &quot;pjs cc on&quot;,
+		CC_PREFS: &quot;pjs cc prefs&quot;,
+		VERIFIED_AGE: &quot;pjs verified age&quot;,
+		VERBOSE_ERROR_MESSAGING: &quot;pjs verbose error messaging&quot;,
+		LOGGING: &quot;pjs logging&quot;,
+		CONVIVA_LOGGING: &quot;pjs conviva logging&quot;,
+		VOLUME: &quot;pjs volume&quot;,
+		MUTED: &quot;pjs muted&quot;
+	};
+	// This doesn&#39;t extend Module, so it doesn&#39;t have all the framework-y stuff other modules have.
+	return Backbone.Model.extend({
+		defaults: {
+			ccOn: false,
+			volume: 0.7,
+			muted: false,
+			verboseErrorMessaging: true
+		},
+		userLanguage: &quot;en&quot;,
+		initialize: function(options) {
+			_.bindAll(this, &quot;onChanged&quot;);
+			this.options = options;
+			try {
+				localStorage.getItem(&quot;testlocalstorage&quot;);
+				this.storage = localStorage;
+			} catch (e) {
+				var noop = function() {};
+				this.storage = {
+					getItem: noop,
+					setItem: noop
+				};
+			}
+			var volume = parseFloat(this.storage.getItem(LOCAL_STORAGE.VOLUME));
+			if (!isNaN(volume)) {
+				this.set(&quot;volume&quot;, volume);
+			}
+			this.set(&quot;muted&quot;, this.storage.getItem(LOCAL_STORAGE.MUTED) === &quot;true&quot;);
+			this.set(&quot;ccOn&quot;, this.storage.getItem(LOCAL_STORAGE.CC_ON) === &quot;true&quot;);
+			this.set(&quot;verboseErrorMessaging&quot;, this.storage.getItem(LOCAL_STORAGE.VERBOSE_ERROR_MESSAGING) === &quot;true&quot;);
+			this.set(&quot;logging&quot;, this.storage.getItem(LOCAL_STORAGE.LOGGING) === &quot;true&quot;);
+			this.set(&quot;convivaLogging&quot;, this.storage.getItem(LOCAL_STORAGE.CONVIVA_LOGGING) === &quot;true&quot;);
+			var ccPrefs = this.storage.getItem(LOCAL_STORAGE.CC_PREFS);
+			if (_.isString(ccPrefs) &amp;&amp; !_.isUndefined(ccPrefs) &amp;&amp; ccPrefs !== &quot;undefined&quot;) {
+				this.set({
+					ccPrefs: JSON.parse(ccPrefs)
+				});
+			}
+			this.listenTo(this, &quot;change:ccPrefs&quot;, _.partial(this.onChanged, LOCAL_STORAGE.CC_PREFS));
+			this.listenTo(this, &quot;change:ccOn&quot;, _.partial(this.onChanged, LOCAL_STORAGE.CC_ON));
+			this.listenTo(this, &quot;change:muted&quot;, _.partial(this.onChanged, LOCAL_STORAGE.MUTED));
+			this.listenTo(this, &quot;change:volume&quot;, _.partial(this.onChanged, LOCAL_STORAGE.VOLUME));
+			this.listenTo(this, &quot;change:verboseErrorMessaging&quot;, _.partial(this.onChanged, LOCAL_STORAGE.VERBOSE_ERROR_MESSAGING));
+		},
+		onChanged: function(id, model, value) {
+			if (id === LOCAL_STORAGE.CC_PREFS) {
+				value = JSON.stringify(value);
+			}
+			this.persist(id, value);
+		},
+		setAgeVerified: function(isOldEnough) {
+			this.saveExpiringValue(LOCAL_STORAGE.VERIFIED_AGE, isOldEnough);
+		},
+		canWatchVideo: function() {
+			var player = this.options.player,
+				metadata = player.currentMetadata;
+			if (metadata.isAd) {
+				// you can always watch an ad (I think).
+				return true;
+			}
+			// not a module, can&#39;t use this.config
+			if (isNaN(player.config.requiredAge) &amp;&amp; !_.isString(metadata.rss.rating)) {
+				return true;
+			}
+			if (this.getExpiringValue(LOCAL_STORAGE.VERIFIED_AGE) === true) {
+				// user has already verified age.
+				return true;
+			}
+			this.logger.info(&quot;age required or metadata rating defined, user not verified.&quot;);
+			return false;
+		},
+		hasFailedAgeVerification: function() {
+			return this.getExpiringValue(LOCAL_STORAGE.VERIFIED_AGE) === false;
+		},
+		persist: function(id, value) {
+			this.storage.setItem(id, value);
+		},
+		saveExpiringValue: function(key, data) {
+			// 14 days (1440 = 1 days in minutes)
+			var expirationMillis = 14 * 1440 * 60 * 1000;
+			var record = {
+				value: data,
+				timestamp: new Date().getTime() + expirationMillis
+			};
+			this.storage.setItem(key, JSON.stringify(record));
+			return data;
+		},
+		getExpiringValue: function(key) {
+			var record = JSON.parse(this.storage.getItem(key));
+			if (record &amp;&amp; new Date().getTime() &lt; record.timestamp) {
+				return record.value;
+			}
+		},
+		destroy: function() {
+			this.stopListening();
+		}
+	}, {
+		NAME: &quot;UserManager&quot;,
+		CC_ON: &quot;ccOn&quot;,
+		CC_PREFS: &quot;ccPrefs&quot;,
+		VERIFIED_AGE: &quot;verifiedAge&quot;,
+		VERBOSE_ERROR_MESSAGING: &quot;verboseErrorMessaging&quot;,
+		LOGGING: &quot;logging&quot;,
+		CONVIVA_LOGGING: &quot;convivaLogging&quot;,
+		VOLUME: &quot;volume&quot;,
+		MUTED: &quot;muted&quot;,
+		Events: {
+			PROP_CHANGE: &quot;change&quot;
+		}
+	});
+})();
+</pre>
+</body>
+</html>

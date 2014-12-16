@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*global _, Module, Events, VMAPAdModel*/
+/* exported VMAPAdManager*/
+<span id='VMAPAdManager'>/**
+</span> * @ignore
+ * Maintains the ad state based on the playhead time.
+ */
+var VMAPAdManager = Module.extend({
+<span id='VMAPAdManager-property-currentAd'>	/**
+</span>	 * Data that describes the ad that&#39;s playing based on the current time.
+	 */
+	currentAd: null,
+	initialize: function() {
+		_.bindAll(this, &quot;onPlayhead&quot;);
+	},
+<span id='VMAPAdManager-method-isPlayingAd'>	/**
+</span>	 * @return {Boolean} Is an ad playing right now.
+	 */
+	isPlayingAd: function() {
+		return _.isObject(this.currentAd);
+	},
+<span id='VMAPAdManager-method-getAdSlotTimeRemaining'>	/**
+</span>	 * returns the amount of time remaining for a preroll, midroll or postroll.
+	 */
+	getAdSlotTimeRemaining: function() {
+		if (this.model) {
+			return this.model.getAdSlotTimeRemaining(this.player.playhead);
+		}
+		return NaN;
+	},
+<span id='VMAPAdManager-method-onPlayhead'>	/**
+</span>	 * based on the current time, check if there is a new ad.
+	 */
+	onPlayhead: function(event) {
+		var currentTime = Math.round(event.data);
+		var ad = this.model.getAd(currentTime);
+		if (this.currentAd !== ad) {
+			this.currentAd = ad;
+			this.updateLog(currentTime);
+			// these events would be used to update the UI.
+			this.trigger(VMAPAdManager.Events.AD, this.currentAd);
+		}
+	},
+<span id='VMAPAdManager-method-updateLog'>	/**
+</span>	 * utility function for logging.
+	 */
+	updateLog: function(currentTime) {
+		var ad = this.currentAd;
+		if (ad) {
+			this.logger.log(&quot;playing &quot; + ad.type, ad.breakId, &quot;at:&quot; + currentTime);
+		} else {
+			this.logger.log(&quot;playing content at:&quot;, currentTime);
+		}
+	},
+<span id='VMAPAdManager-method-onVMAP'>	/**
+</span>	 * when then vmap is loaded, create the model.
+	 */
+	onVMAP: function(vmap) {
+		this.model = new VMAPAdModel(vmap);
+		this.trigger(VMAPAdManager.Events.METADATA, {
+			type: VMAPAdManager.Events.METADATA,
+			data: this.model,
+			target: this
+		});
+		this.player.on(Events.PLAYHEAD_UPDATE, this.onPlayhead);
+	},
+	destroy: function() {
+		this.stopListening();
+		this.player.off(Events.PLAYHEAD_UPDATE, this.onPlayhead);
+	}
+}, {
+	NAME: &quot;VMAPAdManager&quot;,
+	Events: {
+		START: &quot;start&quot;,
+		METADATA: &quot;metadata&quot;,
+		END: &quot;end&quot;
+	}
+});
+</pre>
+</body>
+</html>

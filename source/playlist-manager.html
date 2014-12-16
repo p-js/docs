@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global $, _, Module, Modules, Template, DialogManager, ServicesUrlManager, Playlist, Events */
+/* exported MRSSPlaylistManager */
+var MRSSPlaylistManager = Module.extend(_.extend(_.clone(Playlist.prototype), {
+	currentItem: {
+		ready: false
+	},
+	timeOffset: 0,
+	initialize: function() {
+		this.metadata = {
+			items: []
+		};
+		_.bindAll(this, &quot;onFeed&quot;, &quot;onMediaGen&quot;, &quot;loadCurrentItem&quot;);
+		this.dialogManager = this.options.player.module(DialogManager);
+		// This makes the playlist auto-load when the index changes.
+		Playlist.prototype.initialize.apply(this, arguments);
+	},
+	load: function() {
+		var feed = this.config.feed();
+		if (!feed) {
+			this.onFeedError(null, &quot;No feed specified.&quot;);
+		} else if (_.isObject(feed)) {
+			this.onFeed(feed, true);
+		}
+	},
+	onFeed: function(feed) {
+		// Convert to playlist
+		this.metadata = Playlist.processMetadata(feed, this.config.all());
+		// Trigger Playlist Ready
+		this.triggerPlaylistReady();
+	},
+	loadCurrentItem: function() {
+		this.updateTimeOffset();
+		this.loadItem(this.currentIndex);
+	},
+	loadItem: function(index) {
+		this.logger.info(&quot;load playlist item at &quot; + index);
+		var item = this.getItemAt(index),
+			player = this.options.player,
+			mediaGen;
+		this.currentItem = item;
+		if (item.loading) {
+			this.logger.info(&quot;item already loading...&quot;);
+			return;
+		}
+		if (item.ready) {
+			this.triggerItemReady();
+		} else {
+			item.loading = true;
+			if (this.config.useMediaGenFromFeed()) {
+				this.logger.info(&quot;load mediaGen from feed.&quot;);
+				mediaGen = item.rss.group.content;
+			} else {
+				this.logger.info(&quot;load mediaGen from config.&quot;);
+				mediaGen = this.config.mediaGen();
+			}
+			mediaGen = Template.process(mediaGen, Template.buildTemplateData(player, item, {
+				uri: item.rss.guid,
+				franchise: item.rss.group.category.franchise
+			}));
+			this.logger.info(&quot;mediaGen:&quot; + mediaGen);
+			mediaGen = player.module(ServicesUrlManager).getMediaGenURL(mediaGen);
+			this.logger.info(&quot;mediaGen:&quot; + mediaGen);
+			$.ajax({
+				url: mediaGen,
+				error: this.dialogManager.onXHRError,
+				success: this.onMediaGen
+			});
+		}
+	},
+	updateTimeOffset: function() {
+		this.timeOffset = _.reduce(_.first(this.metadata.items, this.currentIndex), function(memo, item) {
+			return memo + item.duration;
+		}, 0, this);
+	},
+	onMediaGen: function(data) {
+		this.currentItem.loading = false;
+		this.updateTimeOffset();
+		var mediaGen = this.currentItem.mediaGen = data;
+		if (_.isArray(mediaGen.rendition)) {
+			this.logger.error(&quot;mediaGen is probably invalid.&quot;, mediaGen);
+		} else if (_.isObject(mediaGen.rendition)) {
+			this.currentItem.src = mediaGen.rendition.src;
+			this.triggerItemReady();
+		} else {
+			this.logger.error(&quot;mediaGen invalid, we should never get here.&quot;, mediaGen);
+		}
+	},
+	triggerPlaylistReady: function() {
+		this.trigger(Playlist.Events.READY, {
+			target: this,
+			type: Playlist.Events.READY,
+			data: this.metadata
+		});
+		this.trigger(Events.METADATA, this.metadata);
+	},
+	triggerItemReady: function() {
+		this.currentItem.ready = true;
+		this.logger.info(&quot;trigger item ready&quot;, this.currentItem);
+		this.trigger(Playlist.Events.ITEM_READY, {
+			target: this,
+			type: Playlist.Events.ITEM_READY,
+			data: this.currentItem
+		});
+	}
+}), {
+	NAME: Modules.PLAYLIST
+});
+</pre>
+</body>
+</html>

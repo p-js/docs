@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">// PJS @@version, build: @@timestamp
+(function(context) {
+	/* global MTVNPlayer, PJS:true*/
+	/* istanbul ignore next */
+	//= ../components/pjs-package-manager/dist/mtvn-package-manager.js
+	// New namespace PJS, MTVNPlayer remains an alias.
+	PJS = MTVNPlayer;
+	if (!PJS.Player) {
+		var require = PJS.require,
+			provide = PJS.provide;
+		PJS.version = &quot;@@version&quot;;
+		PJS.build = &quot;@@timestamp&quot;;
+		/* istanbul ignore next */
+		(function() {
+			//= ../components/underscore/underscore.js
+			provide(&quot;_&quot;, this._); // underscore is put on this, a temporary scope.
+			// This will be jQuery or Zepto
+			//= ../src/util/third-party/include.@@lib.js
+		}).apply({});
+		// used for testing.
+		provide(&quot;pjs-test&quot;, {});
+		/* jshint unused: false */
+		require([&quot;$&quot;, &quot;_&quot;, &quot;pjs-test&quot;], function($, _, Exports) {
+			&quot;use strict&quot;;
+			//= ../src/build/@@project
+		});
+	}
+})(window);
+</pre>
+</body>
+</html>

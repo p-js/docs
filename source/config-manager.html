@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*global _, $, PJS, Module, Modules, ServicesUrlManager, freeze,
+	LoadingIconManager, Managers, PlaceholderManager, DialogManager, ConfigurePackages*/
+/* exported ConfigManager */
+var ConfigManager = (function() {
+	var getOverrides = function(defaultConfig, test) {
+		var defaultTest = defaultConfig &amp;&amp; defaultConfig.test ? defaultConfig.test : {};
+		return _.extend(defaultTest, test);
+	};
+	return Module.extend({
+		initialize: function() {
+			_.bindAll(this, &quot;finalizeConfig&quot;);
+			this.dialogManager = this.module(DialogManager);
+			this.loadConfig();
+			// always listen for PlaceholderManager events, in case it&#39;s shown on playlist complete.
+			this.listenTo(this.module(PlaceholderManager), PlaceholderManager.Events.CLICK, this.finalizeConfig);
+		},
+<span id='global-method-loadConfig'>		/**
+</span>		 * @ignore
+		 * If the config has a ready var set, don&#39;t load it.
+		 * We need the ready param, or perhaps a certain set of properties can be used to determine &quot;readiness&quot;.
+		 */
+		loadConfig: function() {
+			var config = this.config;
+			if (config.ready()) { // config is loaded.
+				this.finalizeConfig({
+					data: config.all()
+				});
+			} else {
+				if (this.request) {
+					this.request.abort();
+				}
+				var configURL = this.module(ServicesUrlManager).getConfigURL(config.uri());
+				this.logger.info(&quot;loading config&quot;, configURL);
+				$.ajax({
+					url: configURL,
+					error: this.dialogManager.onXHRError,
+					success: this.finalizeConfig
+				});
+				this.module(LoadingIconManager);
+			}
+		},
+		finalizeConfig: function(loadedConfig) {
+			var config = this.config.all();
+			_.extend(config, loadedConfig, getOverrides(PJS.defaultConfig, config.test));
+			freeze(config);
+			this.logger.info(&quot;finalizeConfig() config:&quot;, config);
+			this.initializeModules();
+		},
+<span id='global-method-initializeModules'>		/**	
+</span>		 * @ignore
+		 * The config is ready, let&#39;s initialize the modules.
+		 */
+		initializeModules: function() {
+			ConfigurePackages.fromConfig(this.config);
+			// loop through the Managers array and register them.
+			_.each(Managers.chooseType(this.config), function(Manager) {
+				// to debug, log Manager.NAME
+				this.module(Manager);
+			}, this);
+			// load the playlist, could be VMAP or MRSS.
+			this.module(Modules.PLAYLIST).load();
+			this.player.play();
+		},
+		destroy: function() {
+			this.stopListening();
+			if (this.request) {
+				this.request.abort();
+			}
+		}
+	}, {
+		NAME: &quot;ConfigManager&quot;
+	});
+})();
+</pre>
+</body>
+</html>

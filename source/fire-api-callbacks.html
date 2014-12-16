@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global PJS, context, _, $*/
+<span id='PJS-property-isReady'>/**
+</span> * @member PJS
+ * @property {Boolean}
+ * Set to true after the API is loaded.
+ */
+PJS.isReady = true;
+(function() {
+	// execute any on API callbacks.
+	if (_.isFunction(PJS.onAPIReady)) {
+		PJS.onAPIReady(PJS);
+	}
+	// ensure any legacy callbacks work
+	var callbacks = context._pjsReady || [],
+		legacyCallbacks = context._mtvnPlayerAPIReady || [];
+	callbacks = callbacks.concat(legacyCallbacks);
+	// simpler than the callback chain.
+	_.each(callbacks, function(cb) {
+		if (_.isFunction(cb)) {
+			cb(PJS);
+		}
+	});
+	// define the array, so we can override push.
+	context._pjsReady = [];
+	// override push to fire callbacks immediately
+	context._pjsReady.push = function(cb) {
+		cb(PJS);
+	};
+	// legacy callbacks
+	context._mtvnPlayerAPIReady = context._pjsReady;
+})();
+<span id='global-property-'>/**
+</span> * @ignore
+ * allow auto creation of players by defining a data attribute.
+ */
+$(function() {
+	$(&quot;.MTVNPlayer&quot;).addClass(&quot;pjs&quot;);
+	$(&quot;.pjs[data-auto-create]&quot;).player();
+});
+</pre>
+</body>
+</html>

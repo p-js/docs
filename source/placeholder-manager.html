@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _, Module, Events, ServicesUrlManager, PlayState*/
+/* exported PlaceholderManager */
+var PlaceholderManager = Module.extend({
+	hasSeenPlaceholder: false,
+	initialize: function() {
+		_.bindAll(this, &quot;click&quot;, &quot;show&quot;, &quot;wrapPlaceholderImage&quot;, &quot;hide&quot;);
+		this.player.on(Events.PLAYLIST_COMPLETE, this.show);
+		this.player.on(Events.STATE_CHANGE + &quot;:&quot; + PlayState.PLAYING, this.hide);
+		var $el = this.player.$el;
+		// wrap the placeholder and add the button.
+		this.originalHTML = $el.html();
+		this.$placeholder = $el.html(this.wrapPlaceholderImage).find(PlaceholderManager.SELECTOR);
+		this.$placeholder.on(&quot;click&quot;, this.click);
+	},
+	wrapPlaceholderImage: function(idx, old) {
+		if (!old) {
+			var placeholderURL = this.player.module(ServicesUrlManager).getPlaceholderURL(this.config.uri());
+			old = &quot;&lt;img src=\&quot;&quot; + placeholderURL + &quot;\&quot; class=\&quot;pjs-placeholder-image\&quot;&gt;&quot;;
+		}
+		return &#39;&lt;div class=&quot;pjs-placeholder&quot;&gt;&#39; + old + &#39;&lt;div class=\&quot;pjs-placeholder-button\&quot;&gt;&lt;/div&gt;&lt;/div&gt;&#39;;
+	},
+	hide: function() {
+		this.$placeholder.hide();
+	},
+	show: function() {
+		// move the placeholder to the top.
+		this.$placeholder.parent().append(this.$placeholder);
+		this.$placeholder.show();
+	},
+	click: function(e) {
+		e.preventDefault();
+		// store markup for later use
+		this.$placeholder.hide();
+		// we&#39;ve seen the placeholder, in case autoPlay false is set in the PMT config.
+		this.hasSeenPlaceholder = true;
+		this.logger.info(&quot;placeholder click, play the video.&quot;);
+		this.trigger(PlaceholderManager.Events.CLICK);
+	},
+	destroy: function() {
+		this.player.$el.html(this.originalHTML);
+		this.$placeholder.off(&quot;click&quot;);
+		this.player.off(Events.PLAYLIST_COMPLETE, this.create);
+	}
+}, {
+	Events: {
+		CLICK: &quot;click&quot;
+	},
+	SELECTOR: &quot;div.pjs-placeholder&quot;,
+	NAME: &quot;PlaceholderManager&quot;
+});
+</pre>
+</body>
+</html>

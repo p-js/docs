@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _, Events, Module, require, TimedTextModel, UserManager, VMAPAdManager, PlayheadOffsetManager, FreeWheelManager, PlayState*/
+/* exported ControlsManager */
+<span id='ControlsManager'>/**
+</span> * @ignore
+ * Manage the Ad GUI. And potentially other GUI components.
+ */
+var ControlsManager = Module.extend({
+	initialize: function() {
+		if (!this.config.chromeless() &amp;&amp; !this.config.useNativeControls()) {
+			var player = this.options.player;
+			_.bindAll(this, &quot;onAd&quot;, &quot;onPlayhead&quot;, &quot;manageGUI&quot;, &quot;onBuffered&quot;, &quot;onCC&quot;, &quot;onDuration&quot;, &quot;onStateChange&quot;, &quot;onUIStateChange&quot;, &quot;onPause&quot;, &quot;onPlay&quot;, &quot;onSeek&quot;, &quot;onFullscreen&quot;, &quot;loadControls&quot;, &quot;onMute&quot;, &quot;onUnMute&quot;, &quot;onVolume&quot;);
+			// load the GUI once the media starts
+			player.once(Events.STATE_CHANGE + &quot;:&quot; + PlayState.PLAYING, this.loadControls);
+			player.on(Events.STATE_CHANGE, this.onStateChange);
+			player.on(Events.PLAYHEAD_UPDATE, this.onPlayhead);
+			player.on(Events.DURATION_CHANGE, this.onDuration);
+			this.userManager = this.module(UserManager);
+			player.on(Events.BUFFERED, this.onBuffered);
+			player.on(Events.UI_STATE_CHANGE, this.onUIStateChange);
+			this.playheadOffsetManager = this.module(PlayheadOffsetManager);
+			this.listenTo(this.module(VMAPAdManager), VMAPAdManager.Events.METADATA, this.onAd);
+			this.listenTo(this.module(FreeWheelManager), FreeWheelManager.Events.METADATA, this.onAd);
+		}
+	},
+	loadControls: function() {
+		this.logger.log(&quot;loadControls&quot;);
+		require(&quot;pjs-gui&quot;, this.manageGUI);
+	},
+<span id='ControlsManager-method-onAd'>	/**
+</span>	 * When an ad plays, show/hide the gui.
+	 */
+	onAd: function(event) {
+		this.currentAd = event.data;
+		this.logger.info(&quot;onAd, this.currentAd&quot;, this.currentAd);
+		require(&quot;pjs-gui&quot;, this.manageGUI);
+	},
+<span id='ControlsManager-method-manageGUI'>	/**
+</span>	 * Create the GUI if it&#39;s not there yet.
+	 */
+	manageGUI: function(GUI) {
+		var player = this.player,
+			config = this.config,
+			options = {
+				paused: player.isPaused(),
+				durations: this.getDurations(),
+				playhead: player.playhead,
+				muted: this.userManager.get(&quot;muted&quot;),
+				volume: player.volume(),
+				isLive: player.isLive(),
+				isDVR: player.isDVR(),
+				ccEnabled: config.ccEnabled() &amp;&amp; TimedTextModel.hasTracks(player.config),
+				showVolume: config.showVolume(),
+				showVolumeSlider: config.showVolumeSlider()
+			};
+		if (player.isLive() &amp;&amp; config.ccEnabled()) {
+			// how do we know if we have captions when live?
+			options.ccEnabled = true;
+		}
+		if (!this.gui) {
+			var $el = player.$el,
+				gui = this.gui = new(GUI.Controls)(options),
+				e = GUI.Events;
+			this.logger.info(&quot;create gui&quot;, options);
+			$el.append(this.gui.$el);
+			this.listenTo(gui, e.PLAY, this.onPlay);
+			this.listenTo(gui, e.PAUSE, this.onPause);
+			this.listenTo(gui, e.SEEK, this.onSeek);
+			this.listenTo(gui, e.FULLSCREEN, this.onFullscreen);
+			this.listenTo(gui, e.MUTE, this.onMute);
+			this.listenTo(gui, e.VOLUME, this.onVolume);
+			this.listenTo(gui, e.UNMUTE, this.onUnMute);
+			this.listenTo(gui, e.CC, this.onCC);
+			this.listenTo(gui, e.GO_LIVE, this.onGoLive);
+			this.listenTo(gui, e.REWIND, this.onRewind);
+			this.gui.$el.css({
+				position: &quot;absolute&quot;,
+				bottom: 0
+			});
+		}
+		this.onPlayhead({
+			data: player.playhead
+		});
+		this.updateSliderState();
+	},
+	updateSliderState: function() {
+		var config = this.config,
+			player = this.player;
+		if (!_.isObject(this.currentAd)) {
+			this.logger.info(&quot;ad, unlock gui&quot;, this.currentAd);
+			if (!player.isLive() || (player.isLive() &amp;&amp; player.isDVR())) {
+				this.gui.slider.setEnabled(true);
+			}
+		} else if (config.disableControlsForAds()) {
+			this.logger.info(&quot;ad playing, lock gui&quot;);
+			this.gui.slider.setEnabled(false);
+		}
+	},
+	onUIStateChange: function(event) {
+		if (!this.gui) {
+			return;
+		}
+		if (event.data.active) {
+			this.gui.show();
+		} else {
+			this.gui.hide();
+		}
+	},
+	onFullscreen: function() {
+		if (this.player.isFullScreen) {
+			this.player.exitFullScreen();
+		} else {
+			this.player.goFullScreen();
+		}
+	},
+	getDurations: function() {
+		return _.map(this.options.player.playlistMetadata.items, function(item) {
+			return item.duration;
+		});
+	},
+	onVolume: function(event) {
+		this.player.volume(event.data);
+	},
+	onMute: function() {
+		this.player.mute();
+	},
+	onUnMute: function() {
+		this.player.unmute();
+	},
+	onSeek: function(event) {
+		this.player.seek(event.data);
+	},
+	onPause: function() {
+		this.player.pause();
+	},
+	onPlay: function() {
+		this.player.play();
+	},
+	onCC: function() {
+		this.player.pause();
+		this.player.showCCPanel();
+	},
+	onRewind: function() {
+		var player = this.player,
+			rewindTime = 30, // put this constant somewhere
+			seekTo = Math.max(0, player.playhead - rewindTime);
+		player.seek(seekTo);
+	},
+	onGoLive: function() {
+		this.player.goLive();
+	},
+	onStateChange: function() {
+		if (this.gui) {
+			this.gui.setPaused(this.player.isPaused());
+		}
+	},
+	onBuffered: function(event) {
+		if (this.gui) {
+			this.gui.setBuffered(event.data);
+		}
+	},
+	onDuration: function() {
+		if (this.gui) {
+			this.gui.setDurations(this.getDurations());
+		}
+	},
+<span id='ControlsManager-method-onPlayhead'>	/**
+</span>	 * Update the playhead as the playhead event fires.
+	 */
+	onPlayhead: function() {
+		if (this.gui) {
+			this.gui.setPlayhead(this.playheadOffsetManager.getPlayhead());
+		}
+	},
+	destroy: function() {
+		this.stopListening();
+		var player = this.options.player;
+		player.off(Events.UI_STATE_CHANGE, this.onUIStateChange);
+		player.off(Events.BUFFERED, this.onBuffered);
+		player.off(Events.STATE_CHANGE, this.onStateChange);
+		player.off(Events.PLAYHEAD_UPDATE, this.onPlayhead);
+		player.off(Events.DURATION_CHANGE, this.onDuration);
+		if (this.gui) {
+			this.gui.remove();
+		}
+		delete this.gui;
+	}
+}, {
+	NAME: &quot;ControlsManager&quot;
+});
+</pre>
+</body>
+</html>

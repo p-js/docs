@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _, Module, FullScreen*/
+/* exported FullScreenManager */
+var FullScreenManager = Module.extend({
+	fullScreenCSS: {
+		position: &quot;fixed&quot;,
+		left: 0,
+		top: 0,
+		zIndex: 2147483645 // Max z-index
+	},
+	originalCSS: {
+		position: &quot;relative&quot;,
+		left: &quot;auto&quot;,
+		top: &quot;auto&quot;,
+		zIndex: &quot;auto&quot;
+	},
+	initialize: function() {
+		_.bindAll(this, &quot;onFullScreenChange&quot;);
+		this.listenTo(FullScreen, FullScreen.Events.FULL_SCREEN_CHANGE, this.onFullScreenChange);
+	},
+	getDims: function(obj, fullscreen) {
+		if (fullscreen) {
+			obj.width = this.isNativeFullScreen ? &quot;100%&quot; : window.innerWidth;
+			obj.height = this.isNativeFullScreen ? &quot;100%&quot; : window.innerHeight;
+		} else {
+			obj.width = this.config.width();
+			obj.height = this.config.height();
+		}
+		return obj;
+	},
+	onFullScreenChange: function(event) {
+		this.updateSize(event.data);
+	},
+	updateSize: function(fullscreen) {
+		this.player.$el.css(this.getDims({}, fullscreen));
+		this.player.isFullScreen = fullscreen;
+	},
+	onFullScreenChangeFixed: function(fullscreen) {
+		var css = fullscreen ? this.fullScreenCSS : this.originalCSS;
+		this.player.$el.css(this.getDims(css, fullscreen));
+	},
+	goFullScreen: function() {
+		// attempt native full screen
+		this.isNativeFullScreen = FullScreen.requestFullScreen(this.player.$el[0]);
+		if (this.isNativeFullScreen) {
+			// update the player size right away
+			this.logger.info(&quot;native full screen&quot;);
+			this.updateSize(true);
+		} else {
+			// just fill the screen by using fixed positioning.
+			this.logger.info(&quot;css full screen&quot;);
+			this.onFullScreenChangeFixed(true);
+		}
+		this.player.isFullScreen = true;
+	},
+	exitFullScreen: function() {
+		FullScreen.cancelFullScreen();
+		this.onFullScreenChangeFixed(false);
+		this.player.isFullScreen = false;
+	}
+}, {
+	NAME: &quot;FullScreenManager&quot;
+});
+</pre>
+</body>
+</html>

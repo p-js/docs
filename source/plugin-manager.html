@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*global $, _, MTVNPlayer*/
+(function() {
+	// allow $(&quot;MTVNPlayer&quot;).trigger(&quot;MTVNPlayer:playIndex&quot;,[0,20]);.
+	var mapMethods = function(el, player) {
+			var eventPrefix = &quot;MTVNPlayer:&quot;,
+				invoke = function(event) {
+					var methodName = event.type.replace(eventPrefix, &quot;&quot;),
+						args = _.rest(_.toArray(arguments)),
+						method = player[methodName];
+					if (_.isFunction(method)) {
+						method.apply(player, args);
+					}
+				},
+				playerPrototype = MTVNPlayer.Player.prototype;
+			for (var prop in playerPrototype) {
+				if (playerPrototype.hasOwnProperty(prop)) {
+					el.bind(eventPrefix + prop, invoke);
+				}
+			}
+		},
+		// creates a player and hooks up the jQuery style events.
+		createPlayer = function($el, config, events) {
+			var player = new MTVNPlayer.Player($el[0], config, events);
+			mapMethods($el, player);
+			return player;
+		};
+	// main plugin function
+	$.fn.player = function(options) {
+		options = options || {};
+		if ($.isFunction(options)) {
+			options = {
+				callback: options
+			};
+		}
+		// callback is fired after an MTVNPlayer is created.
+		var callback = $.isFunction(options.callback) ? options.callback : function() {},
+			// first we look for .MTVNPlayer, then we refine to .MTVNPlayers with contenturis.
+			self = this.not(function() {
+				return $(this).data(&quot;contenturi&quot;) ? false : true;
+			});
+		if (self.length &gt; 0) {
+			// prepare placeholders.
+			self.each(function() {
+				callback(createPlayer($(this), _.clone(options.config), options.events));
+			});
+		} else {
+			// nothing happened.
+			callback();
+		}
+	};
+	if (window.$) {
+		window.$.fn.player = $.fn.player;
+	}
+})();
+</pre>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global $, _, Player, Core, PerformanceManager, PJS, ModuleManager, DialogManager,
+  ConfigManager, UserManager, Logger, Modules, CCPanelManager, CCPrefsManager, ConfigModel,
+  PlaybackManager, ActivatedVideoElementManager, PlayerView, PlaceholderManager*/
+<span id='global-property-'>/**
+</span> * @ignore
+ * PJS methods for the Player.prototype.
+ */
+_.extend(Player.prototype, (function() {
+	var removePlayerInstance = function(id) {
+			Core.instances = _.reject(Core.instances, function(instance) {
+				return instance.source === id;
+			});
+		},
+		registerPlayerInstance = function(player) {
+			removePlayerInstance(player.id);
+			Core.instances.push({
+				source: player.id,
+				player: player
+			});
+		},
+<span id='global-property-'>		/**
+</span>		 * @ignore
+		 * We only care if we&#39;re in a click event on a tablet or a phone.
+		 */
+		isWithinClickEvent = !$.os.phone &amp;&amp; !$.os.tablet ? _.constant(true) : function() {
+			return window.event ? window.event.type === &quot;click&quot; : false;
+		},
+<span id='global-property-'>		/**
+</span>		 * @ignore
+		 * This will show placeholders on all players besides the one passed in.
+		 */
+		showPlaceholdersOnOthers = function(activePlayer) {
+			_.each(PJS.getPlayers(), function(player) {
+				if (player !== activePlayer) {
+					player.showPlaceholder();
+				}
+			});
+		};
+	return {
+		logger: new Logger(&quot;PJS.Player&quot;),
+<span id='global-property-managePlaceholder'>		/**
+</span>		 * @ignore
+		 * let the player manage its own placeholder.
+		 */
+		managePlaceholder: true,
+<span id='global-method-create'>		/**
+</span>		 * @ignore
+		 * load javascript and instantiate modules.
+		 */
+		create: function() {
+<span id='global-property-'>			/**
+</span>			 * @ignore
+			 * All modules are managed here.
+			 */
+			if (!this.module) {
+				this.module = new ModuleManager({
+					player: this,
+					controller: this,
+					config: new ConfigModel(this.config)
+				});
+			}
+			registerPlayerInstance(this);
+			var placeholderManager = this.module(PlaceholderManager),
+				config = this.config,
+				withinClickEvent = isWithinClickEvent();
+			this.module(PerformanceManager).setStartTime();
+			this.logger.log(&quot;create player, autoPlay:&quot;, config.autoPlay, &quot;, has seen placeholder:&quot; + placeholderManager.hasSeenPlaceholder + &quot;, within click:&quot;, withinClickEvent);
+			if ((config.autoPlay || placeholderManager.hasSeenPlaceholder) &amp;&amp; withinClickEvent) {
+				this.logger.log(&quot;attempt playback&quot;);
+				showPlaceholdersOnOthers(this);
+				// in case the player was created within a click event, 
+				// create a video element right away in ActivatedVideoElementManager
+				this.module(ActivatedVideoElementManager);
+				placeholderManager.hide();
+				Core.executeCallbacks(this);
+				this.module(PlayerView);
+				// modules will now communicate through the module object. 
+				// this keeps the embed api clean.
+				// the controller is the player object itself, and (most) events go off there.
+				this.module(ConfigManager);
+				this.module(PerformanceManager).initComplete();
+			} else {
+				this.logger.log(&quot;create placeholder&quot;);
+				placeholderManager.show();
+				placeholderManager.once(PlaceholderManager.Events.CLICK, _.bind(this.create, this));
+			}
+		},
+		showMessage: function(options) {
+			this.module(DialogManager).showMessage(options);
+		},
+		showPlaceholder: function() {
+			_(_.without(this.module.all(), this.module(PlaceholderManager))).each(function(module) {
+				module.destroy();
+				this.module.remove(module);
+			}, this);
+			this.module(PlaceholderManager).hasSeenPlaceholder = false;
+			this.create();
+		},
+<span id='global-method-message'>		/**
+</span>		 * @ignore
+		 * forward messages along to the correct module.
+		 */
+		message: function(message) {
+			var args = _.rest(_.toArray(arguments));
+			switch (message) {
+				case &quot;playUri&quot;:
+					var uri = args[0];
+					if (_.isString(uri)) {
+						this.pause();
+						this.config.uri = uri;
+						this.module(ConfigManager).loadConfig(this.config);
+					}
+					break;
+				case &quot;showCCPanel&quot;:
+					this.module(CCPanelManager).show();
+					break;
+				case &quot;showCCPrefs&quot;:
+					this.module(CCPrefsManager).show();
+					break;
+				case &quot;isCCOn&quot;:
+					return this.module(UserManager).get(&quot;ccOn&quot;);
+				case &quot;enableCC&quot;:
+					this.module(UserManager).set(&quot;ccOn&quot;, true);
+					break;
+				case &quot;disableCC&quot;:
+					this.module(UserManager).set(&quot;ccOn&quot;, false);
+					break;
+				case &quot;playIndex&quot;:
+					var index = args[0];
+					this.logger.log(&quot;play index:&quot;, index);
+					this.module(Modules.PLAYLIST).setIndex(index);
+					this.play();
+					break;
+				default:
+					var m = this.module(PlaybackManager);
+					return m.message.apply(m, arguments);
+			}
+		},
+		destroy: function(options) {
+			this.module(PlaceholderManager).off(PlaceholderManager.Events.CLICK);
+			options = options || {};
+			// invoke destroy on all modules.
+			_.invoke(this.module.all(), &quot;destroy&quot;);
+			// TODO just delete.
+			this.events = [];
+			if (this.$el &amp;&amp; !options.leaveElement) {
+				this.$el.remove(); // clean up the events.
+			}
+			// remove references to dom elements.
+			delete this.$el;
+			delete this.playerTarget;
+			delete this.element;
+			removePlayerInstance(this.id);
+		}
+	};
+})());
+</pre>
+</body>
+</html>

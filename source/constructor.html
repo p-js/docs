@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*global PJS, $, _, Config, Events, 
+  EventValidator, Contentless, getErrorMessage*/
+<span id='PJS-Player-method-constructor'><span id='PJS-Player'>/**
+</span></span> * @class PJS.Player
+ * The player object: use it to hook into events ({@link PJS.Events}), call methods, and read properties.
+ *
+ *     var player = new PJS.Player(element/id,config,events);
+ *     player.on(&quot;metadata&quot;,function(event){console.log(&quot;metadata&quot;,event.data);});
+ *     player.pause();
+ *
+ * @constructor
+ * Create a new PJS.Player
+ * @param {String/HTMLElement} pass in a selector, a $ object, an id or a dom element Pass in a string id, or an actual HTMLElement
+ * @param {Object} config config object, see: {@link PJS.Player#config}
+ * @param {Object} events Event callbacks, see: {@link PJS.Events}
+ * @returns PJS.Player
+ */
+var Player = function(element, config, events) {
+	// if it&#39;s a selector or an array, return an array of players.
+	if (!_.isElement(element)) {
+		// if it&#39;s a string, see if it returns any elements.
+		// else assume it&#39;s a jquery object 
+		var $elements = _.isString(element) ? $(element) : element;
+		if ($elements &amp;&amp; $elements.length) {
+			// we&#39;re returning an array of players for a selector
+			return _.map($elements, function($el) {
+				return new Player($el, config, events);
+			});
+		} else {
+			// legacy support 
+			$elements = $(&quot;#&quot; + element);
+			if ($elements &amp;&amp; $elements.length) {
+				// we just want one player returned here.
+				return new Player($elements[0], config, events);
+			} else {
+				throw getErrorMessage(&quot;error creating player, unable to find:&quot; + element);
+			}
+		}
+	}
+	if (!element) {
+		throw getErrorMessage(&quot;player selector or element invalid:&quot; + element);
+	}
+	// else if it&#39;s a string that didn&#39;t find any elements, treat it like an ID for legacy support.
+	// or if it&#39;s an element, obviously create just one player.
+
+	// in case constructor is called without new.
+	if (!(this instanceof Player)) {
+		return new Player(element, config, events);
+	}
+<span id='PJS-Player-property-ready'>	/** 
+</span>	 * @property {Boolean} ready
+	 * The current ready state of the player
+	 */
+	this.ready = false;
+<span id='PJS-Player-property-state'>	/**
+</span>	 * @property {String} state
+	 * The current play state of the player.
+	 */
+	this.state = null;
+<span id='PJS-Player-property-currentMetadata'>	/**
+</span>	 * The current metadata is the metadata that is playing back at this moment.
+	 * This could be ad metadata, or it could be content metadata.
+	 * To access the metadata for the content items in the playlist see {@link PJS.Player#playlistMetadata}
+	 *
+	 * *The best way to inspect the metadata is by using a modern browser and calling console.log(&quot;metadata&quot;,metadata);*
+	 * @property {Object} currentMetadata
+	 *
+	 * @property {String} currentMetadata.src
+	 * Only in vmap and uplynk, the src url of the media asset.
+	 *
+	 * @property {Number} currentMetadata.index
+	 * The index of this metadata in relation to the playlist items. If isAd is true, the index will be -1.
+	 *
+	 * @property {Number} currentMetadata.duration
+	 * The duration of the content. This will update as the duration becomes more accurate.
+	 *
+	 * @property {Boolean} currentMetadata.isLive
+	 * Whether or not the video that&#39;s playing is a live stream.
+	 *
+	 * @property {Boolean} currentMetadata.isAd
+	 * Whether or not the video that&#39;s playing is an advertisment.
+	 *
+	 * @property {Boolean} currentMetadata.isBumper
+	 * Whether or not the video that&#39;s playing is a bumper.
+	 *
+	 * @property {Object} currentMetadata.rss
+	 * The data in the rss feed maps to this object, mirroring the rss&#39;s hierarchy
+	 * @property {String} currentMetadata.rss.title
+	 * Corresponds to the rss title.
+	 * @property {String} currentMetadata.rss.description
+	 * Corresponds to the rss description.
+	 * @property {String} currentMetadata.rss.link
+	 * Corresponds to the rss link.
+	 * @property {String} currentMetadata.rss.guid
+	 * Corresponds to the rss guid.
+	 * @property {Object} currentMetadata.rss.group
+	 * Corresponds to the rss group.
+	 * @property {Object} currentMetadata.rss.group.categories
+	 * Corresponds to the rss group categories
+	 *
+	 */
+	this.currentMetadata = null;
+<span id='PJS-Player-property-playlistMetadata'>	/**
+</span>	 * @property {Object} playlistMetadata
+	 * The playlistMetadata is the metadata about all the playlist items.
+	 *
+	 * @property {Array} playlistMetadata.items
+	 * An array of metadata corresponding to each playlist item, see:{@link PJS.Player#currentMetadata}
+	 */
+	this.playlistMetadata = null;
+<span id='PJS-Player-property-playhead'>	/** @property {Number} playhead
+</span>	 * The current playhead time in seconds.
+	 */
+	this.playhead = 0;
+<span id='PJS-Player-property-isCCEnabled'>	/**
+</span>	 * @property {Boolean} isCCEnabled
+	 * If Closed Captioning is currently enabled.
+	 */
+	this.isCCEnabled = false;
+<span id='PJS-Player-property-element'>	/**
+</span>	 * @property {HTMLElement} element
+	 * The swf embed or the iframe element.
+	 */
+	this.element = null;
+<span id='PJS-Player-cfg-config'>	/**
+</span>	 * @cfg {Object} config The main configuration object.
+	 * @cfg {String} [config.uri] (required) The URI of the media.
+	 * @cfg {Number} [config.width] (required) The width of the player
+	 * @cfg {Number} [config.height] (required) The height of the player
+	 * @cfg {Object} [config.flashVars] Flashvars are passed to the flash player
+	 * @cfg {Object} [config.params] wmode, allowFullScreen, etc. (allowScriptAccess is always forced to true). See [Adobe Help][1]
+	 * [1]: http://kb2.adobe.com/cps/127/tn_12701.html
+	 * @cfg {Object} [config.attributes] see [Adobe Help][1]
+	 * [1]: http://kb2.adobe.com/cps/127/tn_12701.html
+	 * @cfg {String} [config.fullScreenCssText] When the HTML5 player goes full screen, this is the css that is set on the iframe.
+	 * @cfg {String} [config.templateURL] (For TESTING) A URL to use for the embed of iframe src. The template var for uri is {uri}, such as http://site.com/uri={uri}.
+	 *
+	 */
+	this.config = config || {};
+
+	// record the start time for performance analysis.
+	this.config.performance = {
+		// overwritten in p-js
+		startTime: (new Date()).getTime()
+	};
+
+	if (this.config.contentless) {
+		_.extend(Player.prototype, Contentless);
+	}
+
+<span id='PJS-Player-property-isFullScreen'>	/**
+</span>	 * @property {HTMLElement} isFullScreen
+	 * See {@link PJS.Events#fullScreenChange}
+	 */
+	this.isFullScreen = false;
+
+<span id='PJS-Player-property-id'>	/**
+</span>	 * @property
+	 * unique id for this player. if the id is passed, use it.
+	 */
+	this.id = _.uniqueId(&quot;mtvnPlayer&quot;);
+
+	// the player target is going to go inside the $el.
+	var $el = this.$el = $(element);
+
+	// process the element and the config.
+	this.config = Config.buildConfig($el, this.config);
+
+	// the div container class
+	$el.addClass(&quot;pjs&quot;);
+
+	// set the width and height.
+	// if these were set already on the element, then they&#39;ll be overridden.
+	// if they aren&#39;t valid numbers or percentages, they will not override.
+	$el.width(this.config.width).height(this.config.height);
+
+	this.events = Config.copyEvents(events || {}, PJS.defaultEvents);
+
+	// make sure the events are valid
+	EventValidator.checkEvents(events);
+
+	// wait for ready event
+	var eventQueue = [];
+	this.message = _.wrap(this.message, function(func) {
+		var args = _.rest(_.toArray(arguments));
+		if (!this.ready) {
+			eventQueue.push(args);
+		} else {
+			return func.apply(this, args);
+		}
+	});
+
+	// wait for ready event, then fire the eventQueue.
+	this.one(Events.READY, function(event) {
+		var player = event.target,
+			message = player.message;
+		for (var i = 0, len = eventQueue.length; i &lt; len; i++) {
+			message.apply(player, eventQueue[i]);
+		}
+	});
+	// create player
+	this.create();
+};
+</pre>
+</body>
+</html>

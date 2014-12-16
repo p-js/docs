@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global $, Player, PJS, swfobject, Config, Core, _, Events */
+<span id='global-property-'>/**
+</span> * @ignore
+ * set up handling of flash external interface calls
+ * create functions to map metadata to new format,
+ * and handle media player events
+ */
+_.extend(Player.prototype, (function() {
+	var messageNameMap = {
+			play: &quot;unpause&quot;,
+			seek: &quot;setPlayheadTime&quot;
+		},
+		makeWSwfObject = function(targetID, config) {
+			var attributes = config.attributes || {},
+				params = config.params || {
+					allowFullScreen: true
+				},
+				flashVars = config.flashVars || {};
+			// append tve params as flashVars.
+			_.extend(flashVars, config.tve);
+			attributes.data = &quot;http://404/&quot;; //Core.getPath(config);
+			// the parent element has the width and height in pixels.
+			attributes.width = attributes.height = &quot;100%&quot;;
+			// we always want script access.
+			params.allowScriptAccess = &quot;always&quot;;
+			flashVars.performanceStartTime = config.performance.startTime;
+			flashVars.objectID = targetID; // TODO objectID is used by the player.
+			params.flashVars = (function(fv) {
+				var s = &quot;&quot;;
+				for (var p in fv) {
+					if (fv.hasOwnProperty(p)) {
+						s += p + &quot;=&quot; + fv[p] + &quot;&amp;&quot;;
+					}
+				}
+				return s ? s.slice(0, -1) : &quot;&quot;;
+			})(flashVars);
+			Core.getPlayerInstance(targetID).element = swfobject.createSWF(attributes, params, targetID);
+			trackLoadTimeout(targetID, [10, 20, 30]);
+		},
+		trackLoadTimeout = function(targetID, intervals) {
+			var player = Core.getPlayerInstance(targetID);
+			var triggerEvent = function(interval) {
+				if (!player.ready) {
+					player.trigger(Events.PERFORMANCE, {
+						timeout: interval
+					});
+				}
+			};
+			_.each(intervals, function(interval) {
+				console.log(&quot;create interval for &quot; + interval + &quot; seconds&quot;);
+				_.delay(_.partial(triggerEvent, interval), interval * 1000);
+			});
+		},
+		removePlayerInstance = function(id) {
+			Core.instances = _.reject(Core.instances, function(instance) {
+				return instance.source === id;
+			});
+		},
+		exitFullScreen = function() {
+			try {
+				this.element.exitFullScreen();
+			} catch (e) {
+				// fail silently. exit full screen introduced in Prime 1.12
+			}
+		},
+		processMetadata = function(metadata, playlistItems, index, playlistMetadataItems) {
+			var m = {},
+				rss;
+			m.duration = metadata.duration;
+			// TODO no live.
+			m.live = false;
+			m.isAd = metadata.isAd;
+			m.isBumper = metadata.isBumper;
+			if (index !== undefined &amp;&amp; index !== null) {
+				m.index = index;
+			} else if (playlistMetadataItems) {
+				m.index = (function(guid) {
+					for (var i = playlistMetadataItems.length; i--;) {
+						if (playlistMetadataItems[i].rss.guid === guid) {
+							return i;
+						}
+					}
+					return -1;
+				})(metadata.guid);
+			} else {
+				m.index = (function(guid) {
+					for (var i = playlistItems.length; i--;) {
+						if (playlistItems[i].metaData.guid === guid) {
+							return i;
+						}
+					}
+					return -1;
+				})(metadata.guid);
+			}
+			rss = m.rss = {};
+			rss.title = metadata.title;
+			rss.description = metadata.description;
+			rss.guid = metadata.guid;
+			rss.link = metadata.link;
+			rss.image = metadata.thumbnail;
+			rss.group = {};
+			rss.group.categories = (function() {
+				var displayData = metadata.displayData;
+				return {
+					isReportable: metadata.reportable,
+					source: displayData.source,
+					sourceLink: displayData.sourceLink,
+					seoHTMLText: displayData.seoHTMLText
+				};
+			})();
+			return m;
+		},
+		processPlaylistMetadata = function(metadata) {
+			var m = {},
+				items = metadata.items,
+				numberOfItems = items.length,
+				i;
+			m.description = metadata.description;
+			m.title = metadata.title;
+			m.link = metadata.link;
+			m.items = [];
+			for (i = numberOfItems; i--;) {
+				m.items[i] = processMetadata(items[i], null, i);
+			}
+			return m;
+		},
+		getPlaylistItemsLegacy = function(playlistItems) {
+			var m = {
+					items: []
+				},
+				numberOfItems = playlistItems.length,
+				i;
+			for (i = numberOfItems; i--;) {
+				m.items[i] = processMetadata(playlistItems[i].metaData, null, i);
+			}
+			return m;
+		},
+		addFlashEvents = function(player) {
+			var map = PJS._flashEventMap,
+				id = _.uniqueId(&quot;player&quot;),
+				element = player.element,
+				// Flash will reference a global variable.
+				mapString = &quot;PJS._flashEventMap.&quot; + id;
+			// the first metadata event will trigger the Events.READY
+			map[id + Events.METADATA] = function(metadata) {
+				var playlistItems = element.getPlaylist().items,
+					playlistMetadata = player.playlistMetadata,
+					processedMetadata = processMetadata(metadata, playlistItems, null, playlistMetadata ? playlistMetadata.items : null),
+					fireReadyEvent = false,
+					newIndex = processedMetadata.index,
+					lastIndex = playlistMetadata ? playlistMetadata.index : -1;
+				player.currentMetadata = processedMetadata;
+				if (!playlistMetadata) {
+					// this is our first metadata event
+					fireReadyEvent = true;
+					try {
+						playlistMetadata = processPlaylistMetadata(element.getPlaylistMetadata());
+					} catch (e) {
+						playlistMetadata = getPlaylistItemsLegacy(playlistItems);
+					}
+				}
+				if (newIndex !== -1) { // index is -1 for ads.
+					playlistMetadata.items[newIndex] = processedMetadata;
+					playlistMetadata.index = newIndex;
+					if (lastIndex !== newIndex) {
+						player.trigger(Events.INDEX_CHANGE, newIndex);
+					}
+				}
+				player.playlistMetadata = playlistMetadata;
+				if (fireReadyEvent) {
+					player.ready = true;
+					try {
+						var playerConfig = element.getJSConfig();
+						Config.copyProperties(player.config, playerConfig);
+					} catch (e) {
+						// method getJSConfig not implemented.
+					}
+					player.trigger(Events.READY, processedMetadata);
+				}
+				player.trigger(Events.METADATA, processedMetadata);
+			};
+			element.addEventListener(&#39;METADATA&#39;, mapString + Events.METADATA);
+			map[id + Events.STATE_CHANGE] = function(state) {
+				state = state.replace(&quot;playstates.&quot;, &quot;&quot;);
+				player.state = state;
+				player.trigger(Events.STATE_CHANGE, state);
+				player.trigger(Events.STATE_CHANGE + &quot;:&quot; + state, state);
+			};
+			element.addEventListener(&#39;STATE_CHANGE&#39;, mapString + Events.STATE_CHANGE);
+			map[id + Events.PLAYHEAD_UPDATE] = function(playhead) {
+				var lastPlayhead = Math.floor(player.playhead);
+				player.playhead = playhead;
+				player.trigger(Events.PLAYHEAD_UPDATE, playhead);
+				// support for cue points.
+				if (lastPlayhead !== Math.floor(playhead)) {
+					player.trigger(Events.PLAYHEAD_UPDATE + &quot;:&quot; + Math.floor(playhead), playhead);
+				}
+			};
+			element.addEventListener(&#39;PLAYHEAD_UPDATE&#39;, mapString + Events.PLAYHEAD_UPDATE);
+			map[id + Events.FULL_SCREEN_CHANGE] = function(isFullScreen) {
+				if (player.isFullScreen !== isFullScreen) {
+					player.isFullScreen = isFullScreen;
+					player.trigger(Events.FULL_SCREEN_CHANGE, isFullScreen);
+				}
+			};
+			element.addEventListener(&#39;FULL_SCREEN_CHANGE&#39;, mapString + Events.FULL_SCREEN_CHANGE);
+			map[id + Events.PLAYLIST_COMPLETE] = function() {
+				player.trigger(Events.PLAYLIST_COMPLETE);
+			};
+			element.addEventListener(&#39;PLAYLIST_COMPLETE&#39;, mapString + Events.PLAYLIST_COMPLETE);
+			map[id + Events.PERFORMANCE] = function(performanceData) {
+				Core.processPerformance(player, performanceData);
+			};
+			element.addEventListener(&quot;PERFORMANCE&quot;, mapString + Events.PERFORMANCE);
+			map[id + Events.MEDIA_START] = function() {
+				player.trigger(Events.MEDIA_START);
+			};
+			// TODO does this fire for ads?
+			element.addEventListener(&quot;READY&quot;, mapString + Events.MEDIA_START);
+			map[id + Events.MEDIA_END] = function() {
+				player.trigger(Events.MEDIA_END);
+			};
+			// yes, flash event is media ended unfort.
+			element.addEventListener(&quot;MEDIA_ENDED&quot;, mapString + Events.MEDIA_END);
+		};
+	PJS._flashEventMap = {};
+	window.mtvnPlayerLoaded = (function(e) {
+		return function(id) {
+			if (e) {
+				e(id);
+			}
+			var player = Core.getPlayerInstance(id);
+			Core.executeCallbacks(player);
+			addFlashEvents(player);
+		};
+	})(window.mtvnPlayerLoaded);
+	return {
+		create: function(exists) {
+			var targetID = this.id,
+				config = this.config;
+			Core.instances.push({
+				source: targetID,
+				player: this
+			});
+			this.$el.append($(&quot;&lt;div/&gt;&quot;).attr(&quot;id&quot;, this.id));
+			if (!exists) {
+				makeWSwfObject(targetID, config);
+			}
+		},
+		destroy: function() {
+			if (this.element) {
+				swfobject.removeSWF(this.element.id);
+			}
+			removePlayerInstance(this.id);
+		},
+<span id='global-method-message'>		/**
+</span>		 * Send messages to the swf via flash external interface
+		 * Run in the context of {@link PJS.Player}
+		 * @method message
+		 * @ignore
+		 */
+		message: function(message) {
+			// translate api method to flash player method
+			message = messageNameMap[message] || message;
+			switch (message) {
+				case &quot;exitFullScreen&quot;:
+					// needs to be screened
+					exitFullScreen.call(this);
+					return;
+				case &quot;goFullScreen&quot;:
+					// do nothing, unsupported in flash
+					return;
+				case &quot;volume&quot;:
+					if (_.isUndefined(arguments[1])) {
+						return this.element.getVolume();
+					} else {
+						this.element.setVolume(parseFloat(arguments[1], 10));
+					}
+					return;
+				default:
+					break;
+			}
+			// pass up to two arguments
+			if (arguments[1] !== undefined &amp;&amp; arguments[2] !== undefined) {
+				return this.element[message](arguments[1], arguments[2]);
+			} else if (arguments[1] !== undefined) {
+				return this.element[message](arguments[1]);
+			} else {
+				return this.element[message]();
+			}
+		}
+	};
+})());
+</pre>
+</body>
+</html>

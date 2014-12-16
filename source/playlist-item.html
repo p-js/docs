@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* exported PlaylistItem */
+var PlaylistItem = function(options) {
+<span id='global-property-src'>	/**
+</span>	 * @ignore
+	 * The src to play.
+	 */
+	this.src = options.src;
+	this.isLive = options.isLive;
+	this.index = options.index;
+<span id='global-property-rss'>	/**
+</span>	 * @ignore
+	 * Contains the rss metadata, and a mediaGen, which could contain the vmap.
+	 */
+	this.rss = {
+		guid: options.uri,
+		mediaGen: {}
+	};
+};
+
+PlaylistItem.prototype = {
+<span id='global-property-loading'>	/**
+</span>	 * @ignore
+	 * If the item is in the process of being loaded. Currently, not used.
+	 */
+	loading: false,
+<span id='global-property-ready'>	/**
+</span>	 * @ignore
+	 * The item has been prepared.
+	 */
+	ready: false,
+<span id='global-property-isLive'>	/**
+</span>	 * @ignore
+	 * The item is live.
+	 */
+	isLive: false
+};
+</pre>
+</body>
+</html>

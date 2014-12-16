@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global $, _, Module, LoadingIconManager, Modules, Video, UserManager, ActivatedVideoElementManager, FullScreenManager*/
+/* exported VideoManager */
+var VideoManager = Module.extend({
+	currentSrc: &quot;&quot;,
+	initialize: function() {
+		var player = this.options.player,
+			config = this.config,
+			PlayerType = config.isFlash() ? Video.Flash.Player : Video.Html5.Player,
+			$playerTarget = $(&quot;&lt;div/&gt;&quot;).appendTo(player.$el);
+
+		_.bindAll(this, &quot;onMediaEnd&quot;, &quot;play&quot;, &quot;seek&quot;);
+
+		this.userManager = player.module(UserManager);
+
+		// Video module
+		var video = this.video = player.module(Modules.VIDEO, new PlayerType({
+			controls: config.useNativeControls(),
+			muted: this.userManager.get(&quot;muted&quot;),
+			volume: this.userManager.get(&quot;volume&quot;),
+			playerUrl: config.playerUrl,
+			// dontManagePlayhead: true,
+			params: {
+				wmode: &quot;opaque&quot;
+			},
+			el: config.isFlash() ? $playerTarget : player.module(ActivatedVideoElementManager).el
+		}));
+
+		// I&#39;m not exactly sure why this is needed, carries over from legacy.
+		player.element = video.el;
+
+		video.$el.css({
+			position: &quot;absolute&quot;
+		});
+
+		video.$el.attr(&quot;crossorigin&quot;);
+
+		if (!config.isFlash()) {
+			$playerTarget.replaceWith(video.el);
+		}
+		this.playlist = this.player.module(Modules.PLAYLIST);
+		// TODO remove coupling.
+		this.player.module(LoadingIconManager).showIcon();
+	},
+	play: function() {
+		var src = this.playlist.currentItem.src;
+		if (!src) {
+			this.logger.error(&quot;no src for playlist item&quot;, this.playlist.currentItem);
+			return;
+		}
+		this.video.isLive(this.playlist.currentItem.isLive);
+		if (this.currentSrc === src) {
+			this.logger.info(&quot;same src.&quot;);
+		} else {
+			this.logger.info(&quot;set src&quot;, src);
+			this.currentSrc = src;
+			this.video.setSrc(src);
+		}
+		// if we&#39;re live and not DVR, 
+		// invoke goLive instead of play
+		// unless we haven&#39;t done anything yet.
+		if (this.player.isLive() &amp;&amp; !this.player.isDVR() &amp;&amp; this.player.state) {
+			this.logger.info(&quot;call video.goLive()&quot;);
+			this.video.goLive();
+		} else {
+			this.logger.info(&quot;call video.play()&quot;);
+			this.video.play();
+		}
+	},
+	seek: function(time) {
+		this.logger.info(&quot;seek:&quot;, time);
+		this.video.seek(time);
+	},
+	persist: function(message, args) {
+		switch (message) {
+			case &quot;mute&quot;:
+				this.userManager.set(&quot;muted&quot;, true);
+				break;
+			case &quot;unmute&quot;:
+				this.userManager.set(&quot;muted&quot;, false);
+				break;
+			case &quot;volume&quot;:
+				var volume = args[0];
+				if (!_.isUndefined(volume)) {
+					this.userManager.set(&quot;volume&quot;, volume);
+				}
+				break;
+			default:
+				break;
+		}
+	},
+	sendToVideoModule: function(message, args) {
+		if (!this.video[message]) {
+			throw message + &quot; not implemented.&quot;;
+		}
+
+		return this.video[message].apply(this.video, args);
+	},
+	message: function(message) {
+		var args = _.rest(_.toArray(arguments));
+		switch (message) {
+			// hi-jacked messages
+			case &quot;play&quot;:
+			case &quot;seek&quot;:
+				return this[message].apply(this, args);
+			case &quot;goFullScreen&quot;:
+				return this.player.module(FullScreenManager).goFullScreen();
+			case &quot;exitFullScreen&quot;:
+				return this.player.module(FullScreenManager).exitFullScreen();
+			case &quot;setVolume&quot;:
+				this.persist(&quot;volume&quot;, args);
+				return this.sendToVideoModule(message, args);
+			case &quot;volume&quot;:
+			case &quot;unmute&quot;:
+			case &quot;mute&quot;:
+				this.persist(message, args);
+				return this.sendToVideoModule(message, args);
+			case &quot;playSource&quot;:
+				this.sendToVideoModule(&quot;setSrc&quot;, args);
+				this.sendToVideoModule(&quot;load&quot;);
+				return;
+			default:
+				return this.sendToVideoModule(message, args);
+		}
+	}
+});
+</pre>
+</body>
+</html>

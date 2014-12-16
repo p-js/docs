@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* exported PlayState */
+<span id='PJS-PlayState'>/**
+</span> * @class PJS.PlayState
+ * When a {@link PJS.Events#stateChange} event is fired, the event&#39;s data property will be equal to one of these play states.
+ * At the moment, there may be incongruities between html5 and flash state sequences.
+ * Flash also has &quot;initializing&quot; and &quot;connecting&quot; states, which aren&#39;t available in the html5 player.
+ */
+var PlayState = {
+<span id='PJS-PlayState-property-INITIALIZING'>	/**
+</span>	 * The player begins looking for media data.
+	 * @property
+	 */
+	INITIALIZING: &quot;loadstart&quot;,
+<span id='PJS-PlayState-property-PLAYING'>	/**
+</span>	 * The video is playing.
+	 * @property
+	 */
+	PLAYING: &quot;playing&quot;,
+<span id='PJS-PlayState-property-PAUSED'>	/**
+</span>	 * The video is paused.
+	 * @property
+	 */
+	PAUSED: &quot;paused&quot;,
+<span id='PJS-PlayState-property-SEEKING'>	/**
+</span>	 * The video is seeking.
+	 * @property
+	 */
+	SEEKING: &quot;seeking&quot;,
+<span id='PJS-PlayState-property-STOPPED'>	/**
+</span>	 * The video is stopped.
+	 * @property
+	 */
+	STOPPED: &quot;stopped&quot;,
+<span id='PJS-PlayState-property-STALLED'>	/**
+</span>	 * A stalled event fired.
+	 * @property
+	 */
+	STALLED: &quot;stalled&quot;,
+<span id='PJS-PlayState-property-ERROR'>	/**
+</span>	 * An error event fired.
+	 * @property
+	 */
+	ERROR: &quot;error&quot;
+};
+</pre>
+</body>
+</html>

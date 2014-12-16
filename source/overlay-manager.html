@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _, Module, Events, $*/
+/* exported OverlayManager */
+var OverlayManager = Module.extend({
+	initialize: function() {
+		_.bindAll(this, &quot;onMetadata&quot;, &quot;onMediaEnd&quot;, &quot;onUIStateChange&quot;, &quot;createOverlay&quot;, &quot;onPlayhead&quot;);
+		this.$overlayContainer = $(&quot;&lt;div/&gt;&quot;).addClass(&quot;pjs-overlay-container&quot;);
+		this.player.$el.append(this.$overlayContainer);
+		this.player.on(Events.METADATA, this.onMetadata);
+		this.player.on(Events.PLAYHEAD_UPDATE, this.onPlayhead);
+		// disabled for now
+		// this.player.on(Events.UI_STATE_CHANGE, this.onUIStateChange);
+	},
+	onUIStateChange: function(event) {
+		// this works but it complicates things, not sure if it&#39;s needed.
+		// disabled for now
+		var css = {
+			top: 0,
+			height: &quot;100%&quot;
+		};
+		if (event.data.active) {
+			css = {
+				top: &quot;50px&quot;,
+				height: this.player.$el.height() - 100 + &quot;px&quot;
+			};
+		}
+		this.logger.info(&quot;css&quot;, css);
+		this.$overlayContainer.css(css);
+	},
+	onMetadata: function(event) {
+		this.$overlayContainer.empty();
+		this.overlays = [];
+		var mediaGen = event.data.mediaGen;
+		if (mediaGen) {
+			// mediaGen.overlay is always an array.
+			_.each(mediaGen.overlay, this.createOverlay);
+		}
+	},
+	createOverlay: function(overlay) {
+		this.logger.info(&quot;createOverlay&quot;, overlay);
+		var $el = $(&quot;&lt;img/&gt;&quot;).attr(&quot;src&quot;, overlay.src).css({
+			position: &quot;absolute&quot;,
+			width: overlay.width,
+			height: overlay.height,
+			left: overlay.xPercent + &quot;%&quot;,
+			marginLeft: -overlay.width * overlay.xPercent / 100,
+			top: overlay.yPercent + &quot;%&quot;,
+			marginTop: -overlay.height * overlay.yPercent / 100,
+		});
+		$el.hide();
+		this.overlays.push({
+			startTime: overlay.startTime,
+			endTime: overlay.endTime,
+			$el: $el
+		});
+		this.$overlayContainer.append($el);
+	},
+	onPlayhead: function(event) {
+		var playhead = event.data;
+		_.each(this.overlays, function(overlay) {
+			if (playhead &gt;= overlay.startTime &amp;&amp; playhead &lt;= overlay.endTime) {
+				overlay.$el.show();
+			} else {
+				overlay.$el.hide();
+			}
+		});
+	},
+	onMediaEnd: function() {
+		this.$overlayContainer.empty();
+	},
+	destroy: function() {
+		delete this.$overlays;
+		this.$overlayContainer.empty();
+		this.stopListening();
+	}
+}, {
+	NAME: &quot;OverlayManager&quot;
+});
+</pre>
+</body>
+</html>

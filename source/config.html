@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js"><span id='Config'>/**
+</span> * @ignore
+ * The config module has helper functions for dealing with the config object.
+ **/
+var Config = (function() {
+	function normalize(config) {
+		if (!config) {
+			return {};
+		}
+		var fv = config.flashVars;
+		if (fv) {
+			config.sid = fv.sid || fv.ssid;
+		}
+		_.each([&quot;width&quot;, &quot;height&quot;], function(prop) {
+			var val = config[prop];
+			if (_.isString(val) &amp;&amp; val.indexOf(&quot;%&quot;) !== -1) {
+				// it&#39;s a percentage, leave it be.
+				return;
+			}
+			// if it&#39;s not a percentage, parse to an integer.
+			var result = parseInt(val, 10);
+			if (!isNaN(result)) {
+				config[prop] = result;
+			} else {
+				delete config[prop];
+			}
+		});
+		// any bad value will be omitted
+		return _.omit(config, function(val) {
+			return _.isUndefined(val) || _.isNull(val);
+		});
+	}
+
+	function getBoolean(val) {
+		if (_.isString(val)) {
+			if (val === &quot;true&quot; || val === &quot;false&quot;) {
+				val = val === &quot;true&quot;;
+			}
+		}
+		return val;
+	}
+
+	function getDataAttr($el, attr) {
+		return $el.data(attr);
+	}
+
+	function getStyleAttr(el, attr) {
+		var result = el.style[attr];
+		if (_.isString(result) &amp;&amp; result.indexOf(&quot;%&quot;) !== -1) {
+			return result;
+		}
+		// we don&#39;t to measure if undefined, so don&#39;t use $el.css(attr).
+		return parseInt(result, 10);
+	}
+
+<span id='global-method-getObjectFromNameValue'>	/**
+</span>	 * @ignore
+	 * Allow the element to define some custom flashvars instead of
+	 * using querystring format on the data-flashVars object.
+	 */
+	function getObjectFromNameValue($el, attr) {
+		if (_.isString(attr)) {
+			attr = [attr];
+		}
+		_.some(attr, function(prop) {
+			var result = getDataAttr($el, prop);
+			if (result) {
+				attr = result;
+				return true;
+			}
+		});
+		if (_.isString(attr)) {
+			var result = {};
+			_.each(attr.split(&quot;&amp;&quot;), function(pair) {
+				pair = pair.split(&quot;=&quot;);
+				if (pair &amp;&amp; pair.length === 2) {
+					result[pair[0]] = getBoolean(pair[1]);
+				}
+			});
+			return result;
+		}
+	}
+
+	function copyCustomPropertiesToFlashVars($el, obj) {
+		obj = obj || {};
+		_.each([&quot;autoPlay&quot;, &quot;auto-play&quot;, &quot;sid&quot;, &quot;ssid&quot;], function(prop) {
+			var result = getDataAttr($el, prop);
+			if (prop === &quot;auto-play&quot; || prop === &quot;autoplay&quot;) {
+				prop = &quot;autoPlay&quot;;
+			}
+			if (!_.isUndefined(result)) {
+				obj[prop] = getBoolean(result);
+			}
+		});
+		return obj;
+	}
+
+	function getAutoPlay(val) {
+		if (_.isUndefined(val) || _.isNull(val)) {
+			// null, undefined return false
+			return false;
+		}
+		if (val === &quot;&quot;) {
+			// it&#39;s defined but not set, boolean attribute
+			return true;
+		}
+		if (_.isBoolean(val)) {
+			return val;
+		}
+		return val === &quot;true&quot;;
+	}
+	return {
+<span id='global-method-copyEvents'>		/**
+</span>		 * @ignore
+		 * Copy one event object to another, building an array when necessary.
+		 */
+		copyEvents: function(toObj, fromObj) {
+			toObj = toObj || {};
+			if (fromObj) {
+				_.each(fromObj, function(newEvent, prop) {
+					if (_.isFunction(newEvent) || _.isArray(newEvent)) {
+						var currentEvent = toObj[prop];
+						if (currentEvent) {
+							// the event object already exists, we need to augment it
+							if (_.isArray(currentEvent)) {
+								if (_.isArray(newEvent)) {
+									// combine the arrays
+									toObj[prop] = currentEvent.concat(newEvent);
+								} else {
+									// tack on the event to an existing array
+									currentEvent.push(newEvent);
+								}
+							} else {
+								// make a new array and concat the new array, or just make an array with two items.
+								toObj[prop] = _.isArray(newEvent) ? [currentEvent].concat(newEvent) : [currentEvent, newEvent];
+							}
+						} else {
+							// just set it...
+							toObj[prop] = newEvent;
+						}
+					}
+				});
+			}
+			return toObj;
+		},
+		normalize: normalize,
+<span id='global-method-copyProperties'>		/**
+</span>		 * @ignore
+		 * Copy one config object to another, this includes a deep copy for flashvars, attributes, and params.
+		 * The properties will not be overriden on the toObj, unless override is specified.
+		 */
+		copyProperties: function(toObj, fromObj, override) {
+			if (!toObj) {
+				toObj = {};
+			}
+			toObj = normalize(toObj);
+			if (!fromObj) {
+				return toObj;
+			}
+			fromObj = normalize(fromObj);
+			_.each(fromObj, function(val, prop) {
+				if (prop === &quot;flashVars&quot; || prop === &quot;attributes&quot; || prop === &quot;params&quot; || prop === &quot;test&quot;) {
+					toObj[prop] = Config.copyProperties(toObj[prop], val, override);
+				} else {
+					// don&#39;t override if the prop exists
+					if (!override &amp;&amp; !_.isUndefined(toObj[prop])) {
+						return;
+					}
+					toObj[prop] = val;
+				}
+			});
+			return toObj;
+		},
+		needsScrollToForFullScreen: function(userAgent) {
+			var reg = /OS (\d*)/ig,
+				match = reg.exec(userAgent);
+			if (!_.isEmpty(match)) {
+				var result = parseInt(match[1], 10);
+				if (!isNaN(result) &amp;&amp; result &lt;= 4) {
+					return true;
+				}
+			}
+			return false;
+		},
+		buildConfig: function($el, config) {
+			config = Config.copyProperties(config, _.clone(PJS.defaultConfig));
+			// make sure the height and width are defined.
+			// 640x360 is now the default.
+			config = _.defaults(config, {
+				width: 640,
+				height: 360
+			});
+			var el = $el[0],
+				configFromEl = {
+					uri: getDataAttr($el, &quot;contenturi&quot;),
+					autoPlay: getAutoPlay(getDataAttr($el, &quot;autoPlay&quot;)),
+					flashVars: copyCustomPropertiesToFlashVars($el, getObjectFromNameValue($el, [&quot;flashVars&quot;, &quot;flash-vars&quot;])),
+					attributes: getObjectFromNameValue($el, &quot;attributes&quot;),
+					width: getStyleAttr(el, &quot;width&quot;),
+					height: getStyleAttr(el, &quot;height&quot;)
+				};
+			// here we override, element settings take precedence
+			return Config.copyProperties(config, normalize(configFromEl), true);
+		}
+	};
+})();
+</pre>
+</body>
+</html>

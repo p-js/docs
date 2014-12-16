@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _*/
+/* exported VMAPAdModel*/
+<span id='VMAPAdModel'>/**
+</span> * @ignore
+ * Wrap the object with some utility functions to determine which ad is playing based on a time passed.
+ */
+var VMAPAdModel = function(model) {
+	_.extend(this, model);
+	var ranges = this.ranges = [],
+		endTime;
+	_.each(model.adBreaks, function(adBreak) {
+		var range = _.range(adBreak.startTime, adBreak.endTime);
+		if (adBreak.startTime !== endTime) {
+			ranges.push(range);
+		} else {
+			ranges[ranges.length - 1] = _.last(ranges).concat(range);
+		}
+		endTime = adBreak.endTime;
+	});
+};
+VMAPAdModel.prototype = {
+<span id='global-method-rawTime'>	/**
+</span>	 * @ignore
+	 * convert something like &quot;00:00:29.9330000+00:00&quot; to 29.93
+	 */
+	rawTime: function(seconds) {
+		var b = seconds.split(/\D/);
+		return (+b[0]) * 60 * 60 + (+b[1]) * 60 + (+b[2]) + (b[3] ? parseFloat(&quot;.&quot; + b[3]) : 0);
+	},
+<span id='VMAPAdModel-method-getAd'>	/**
+</span>	 * @param {Number} the time to evaluate agains the VMAPParser.
+	 * @return the ad that&#39;s playing for the current time.
+	 */
+	getAd: function(currentTime) {
+		if (_.isString(currentTime)) {
+			currentTime = this.rawTime(currentTime);
+		}
+		var ad;
+		_.some(this.adBreaks, function(roll) {
+			if (currentTime &gt;= roll.startTime &amp;&amp; currentTime &lt;= roll.endTime) {
+				ad = roll;
+				return true;
+			}
+		});
+		return ad;
+	},
+<span id='VMAPAdModel-method-getAdSlotTimeRemaining'>	/**
+</span>	 * @param {Number} the time to evaluate against the VMAPParser.
+	 * @return The amount of time remaining in the preroll, midroll or postroll.
+	 */
+	getAdSlotTimeRemaining: function(currentTime) {
+		if (_.isString(currentTime)) {
+			currentTime = this.rawTime(currentTime);
+		}
+		currentTime = Math.round(currentTime);
+		var result = NaN;
+		_.some(this.ranges, function(range) {
+			if (_.contains(range, currentTime)) {
+				result = _.last(range) - currentTime + 1;
+				return true;
+			}
+		});
+		return result;
+	}
+};
+</pre>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global _, Module, require, UserManager */
+/* exported AgeGateManager */
+<span id='AgeGateManager'>/**
+</span> * @ignore
+ * Load the age gate code, show it, and respond to the verification.
+ */
+var AgeGateManager = Module.extend({
+	initialize: function() {
+		_.bindAll(this, &quot;onVerification&quot;, &quot;showAgeGate&quot;);
+	},
+	verify: function() {
+		if (this.ageGate) {
+			return;
+		}
+		require(&quot;mtvn-player/age-gate&quot;, this.showAgeGate);
+	},
+	showAgeGate: function(AgeGate) {
+		var ageGate = this.ageGate = new AgeGate({
+			requiredAge: this.config.requiredAge(),
+			isTooYoung: this.module(UserManager).hasFailedAgeVerification()
+		});
+		this.logger.log(&quot;show age gate, options&quot;, ageGate.options);
+		ageGate.$el.css({
+			position: &quot;absolute&quot;
+		});
+		this.player.$el.append(ageGate.$el);
+		this.listenTo(ageGate, AgeGate.Events.IS_OK, this.onVerification);
+	},
+	onVerification: function(event) {
+		var isOldEnough = event.data,
+			player = this.options.player;
+		player.module(UserManager).setAgeVerified(isOldEnough);
+		this.logger.info(isOldEnough ? &quot;verified, play video.&quot; : &quot;too young.&quot;);
+		if (isOldEnough) {
+			delete this.ageGate;
+			player.play();
+		}
+	},
+	destroy: function() {
+		if (this.ageGate) {
+			this.ageGate.remove();
+		}
+	}
+}, {
+	NAME: &quot;AgeGateManager&quot;
+});
+</pre>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* global Module, BTGInitializer, require, _, Modules */
+/* exported BTGInitManager */
+var BTGInitManager = Module.extend({
+	initialize: function() {
+		BTGInitializer.init();
+		_.bindAll(this, &quot;onBTG&quot;);
+		require([&quot;btg&quot;, &quot;bento-model-adapter&quot;], this.onBTG);
+	},
+	onBTG: function(BTG, BentoModelAdapter) {
+		// wondering if BTG.ConfigSettings() is required, shouldn&#39;t that be in BTG,
+		// and maybe used to set defaults on the a config passed in _.defaults(config, BTG.ConfigSettings())?
+		var btgConfig = _.extend(BTG.ConfigSettings(), BentoModelAdapter.processConfig(_.clone(this.config.all()))),
+			btgMetadata = BentoModelAdapter.processMetadata(this.player.module(Modules.PLAYLIST), btgConfig);
+		var $el = this.player.$el;
+		if (!$el.prop(&quot;id&quot;)) {
+			$el.prop(&quot;id&quot;, _.uniqueId(&quot;playerIdForFreeWheel&quot;));
+		}
+		// This should probably be in the model adapter
+		btgConfig.freewheelDisplayBase = $el.prop(&quot;id&quot;);
+		this.logger.info(&quot;BTG.Bento loaded, config:&quot;, btgConfig);
+		BTG.Bento.onConfig(btgConfig);
+		this.logger.info(&quot;BTG.Bento set metadata:&quot;, btgMetadata);
+		BTG.Bento.onMetadata(btgMetadata);
+	}
+}, {
+	NAME: &quot;BTGInitManager&quot;
+});
+</pre>
+</body>
+</html>

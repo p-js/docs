@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/* exported PlayheadOffsetManager */
+/* global Module, _, Events*/
+<span id='PlayheadOffsetManager'>/**
+</span> * @ignore
+ * Manage the playhead offset when we&#39;re in full episode mode.
+ * The playlist playhead will equal the offset plus the current playhead
+ * Ensure that playheadOffset is reset on ads and on index change
+ */
+var PlayheadOffsetManager = Module.extend({
+	playheadOffset: 0,
+	initialize: function() {
+		var player = this.options.player;
+		_.bindAll(this, &quot;onIndexChange&quot;, &quot;getPlayhead&quot;, &quot;onMetadata&quot;);
+		if (this.config.useSegmentedScrubber()) {
+			player.on(Events.INDEX_CHANGE, this.onIndexChange);
+			player.on(Events.METADATA, this.onMetadata);
+		}
+	},
+	onMetadata: function(event) {
+		if (event.data.isAd) {
+			this.playheadOffset = 0;
+		}
+	},
+	onIndexChange: function(event) {
+		var player = this.options.player,
+			currentIndex = event.data;
+		this.playheadOffset = 0;
+		_.each(_.first(player.playlistMetadata.items, currentIndex), function(item) {
+			this.playheadOffset += item.duration;
+		}, this);
+	},
+	getPlayhead: function() {
+		return this.playheadOffset + (this.player.playhead || 0);
+	}
+});
+</pre>
+</body>
+</html>

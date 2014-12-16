@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*global PlayState, _, Module, Modules, Events, Playlist, Video*/
+<span id='APIManager'>/**
+</span> * @ignore
+ * Hook into module events and send them through the embed api (this.player)
+ */
+var APIManager = Module.extend({
+	initialize: function() {
+		_.bindAll(this, &quot;onPlaylistReady&quot;, &quot;onItemReady&quot;, &quot;onAd&quot;, &quot;onState&quot;, &quot;onDuration&quot;, &quot;proxyEvent&quot;, &quot;onVolumeChange&quot;, &quot;onBuffered&quot;);
+		this.playlist = this.configurePlaylistEvents(this.module(Modules.PLAYLIST));
+		// TODO register for ad events
+		// tie into the VIDEO module directly, not the PlaybackMananger
+		this.configureVideo(this.module(Modules.VIDEO));
+	},
+	configurePlaylistEvents: function(playlist) {
+		this.listenTo(playlist, Playlist.Events.READY, this.onPlaylistReady);
+		this.listenTo(playlist, Playlist.Events.ITEM_READY, this.onItemReady);
+		this.listenTo(playlist, Playlist.Events.INDEX_CHANGE, this.onIndexChange);
+		return playlist;
+	},
+	configureVideo: function(video) {
+		var e = Video.Events;
+		this.listenTo(video, e.STATE, this.onState);
+		this.listenTo(video, e.DURATION, this.onDuration);
+		this.listenTo(video, e.DURATION, this.proxyEvent);
+		this.listenTo(video, e.PLAYHEAD, this.onPlayhead);
+		this.listenTo(video, e.VOLUME, this.onVolumeChange);
+		this.listenTo(video, e.BUFFERED, this.onBuffered);
+		this.listenTo(video, e.STALLED, this.onStalled);
+		this.listenTo(video, e.END, this.proxyEvent);
+	},
+	onAd: function(event) {
+		var player = this.player;
+		if (event.data) {
+			player.currentMetadata = {
+				isAd: true,
+				index: -1
+			};
+		} else {
+			player.currentMetadata = this.playlist.currentItem;
+		}
+		player.trigger(Events.METADATA, player.currentMetadata);
+	},
+	onStalled: function(event) {
+		this.player.trigger(Events.STATE_CHANGE, event.data);
+	},
+	onBuffered: function(event) {
+		this.player.trigger(Events.BUFFERED, event.data);
+	},
+	onVolumeChange: function(event) {
+		this.player.trigger(Events.VOLUME_CHANGE, event.data);
+	},
+	onPlayhead: function(event) {
+		var playhead = event.data;
+		var lastPlayhead = Math.floor(this.player.playhead);
+		this.player.playhead = playhead;
+		this.player.trigger(Events.PLAYHEAD_UPDATE, playhead);
+		if (lastPlayhead !== Math.floor(playhead)) {
+			this.player.trigger(Events.PLAYHEAD_UPDATE + &quot;:&quot; + Math.floor(playhead), playhead);
+		}
+	},
+	onIndexChange: function(event) {
+		this.player.trigger(Events.INDEX_CHANGE, event.data);
+	},
+	onDuration: function(event) {
+		var m = this.player.currentMetadata;
+		m.duration = event.data;
+		this.player.trigger(Events.DURATION_CHANGE, event.data);
+	},
+	onState: function(event) {
+		var state = APIManager.STATE_MAP[event.data] || event.data;
+		this.player.state = state;
+		this.checkMediaStart(state);
+		this.player.trigger(Events.STATE_CHANGE, state);
+		this.player.trigger(Events.STATE_CHANGE + &quot;:&quot; + state, state);
+	},
+	proxyEvent: function(event) {
+		this.player.trigger(APIManager.EVENT_MAP[event.type] || event.type, event.data);
+	},
+	checkPlayerReady: function() {
+		var player = this.player;
+		if (!player.ready) {
+			player.ready = true;
+			player.trigger(Events.READY);
+		}
+	},
+	checkMediaStart: function(state) {
+		if (state === PlayState.PLAYING &amp;&amp; !this.player.currentMetadata.isAd) {
+			if (this.playlist.currentIndex !== this.currentPlayingIndex) {
+				this.currentPlayingIndex = this.playlist.currentIndex;
+				this.logger.info(&quot;checkMediaStart() send MEDIA_START for index:&quot; + this.currentPlayingIndex);
+				this.player.trigger(Events.MEDIA_START);
+			}
+		}
+	},
+	onItemReady: function(event) {
+		this.player.currentMetadata = event.data;
+		this.player.trigger(Events.METADATA, event.data);
+	},
+	onPlaylistReady: function(event) {
+		var player = this.player;
+		player.playlistMetadata = event.data;
+		player.currentMetadata = player.playlistMetadata.items[0];
+		this.checkPlayerReady();
+	},
+	destroy: function() {
+		this.stopListening();
+	}
+}, {
+	EVENT_MAP: {
+		&quot;state&quot;: Events.STATE_CHANGE,
+		&quot;end&quot;: Events.MEDIA_END,
+		&quot;playhead&quot;: Events.PLAYHEAD_UPDATE
+	},
+	STATE_MAP: {
+		canplaythrough: &quot;canplay&quot;,
+		pause: &quot;paused&quot;
+	},
+	NAME: &quot;APIManager&quot;
+});
+</pre>
+</body>
+</html>

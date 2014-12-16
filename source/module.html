@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>The source code</title>
+  <link href="../resources/prettify/prettify.css" type="text/css" rel="stylesheet" />
+  <script type="text/javascript" src="../resources/prettify/prettify.js"></script>
+  <style type="text/css">
+    .highlight { display: block; background-color: #ddd; }
+  </style>
+  <script type="text/javascript">
+    function highlight() {
+      document.getElementById(location.hash.replace(/#/, "")).className = "highlight";
+    }
+  </script>
+</head>
+<body onload="prettyPrint(); highlight();">
+  <pre class="prettyprint lang-js">/*global Logger, Backbone, _*/
+/* exported Module */
+<span id='Module'>/**
+</span> * @ignore
+ * Simple base class functionality.
+ * Subclass get an options and a logger.
+ * An initialize method and a destroy method.
+ * And Backbone.Events.
+ */
+var Module = function(options) {
+	this.options = options || {};
+	this.player = options.player;
+	this.config = options.config;
+	this.controller = options.controller;
+	this.module = this.player.module;
+	var loggerName = this.name || options.moduleId;
+	loggerName = loggerName ? &quot;.&quot; + loggerName : &quot;&quot;;
+	this.logger = new Logger(&quot;PJS.Player&quot; + loggerName);
+};
+// mixin events and some default methods
+_.extend(Module.prototype, Backbone.Events, {
+	initialize: function() {},
+	destroy: function() {
+		this.stopListening();
+	}
+});
+// copy the extend function, this has nothing to do with Backbone.Model
+Module.extend = Backbone.Model.extend;
+</pre>
+</body>
+</html>
